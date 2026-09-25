@@ -96,17 +96,33 @@
     const isHost = !hostRoomId;
 
     // Google公開STUNサーバーの明示指定
+    // STUN（直接接続用）＋ TURN（リレー中継用）のハイブリッド設定
     const peerConfig = {
       config: {
         iceServers: [
+          // Google STUNサーバー
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun3.l.google.com:19302' },
-          { urls: 'stun:stun4.l.google.com:19302' }
+          
+          // Open Relay Project 提供の無料TURNサーバー（ポート指定で確実にファイアウォールを貫通）
+          {
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          },
+          {
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          },
+          {
+            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          }
         ]
       },
-      debug: 1 // 致命的なエラーのみログ
+      debug: 1
     };
 
     const peer = new Peer(peerConfig);
