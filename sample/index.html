@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>非対称協力ロビー 接続テスト</title>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; max-width: 640px; margin: 0 auto; line-height: 1.5; color: #333; }
+    .card { background: #fdfdfd; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+    h1 { font-size: 20px; margin-top: 0; }
+    h2 { font-size: 16px; margin-top: 0; color: #555; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: bold; background: #eee; }
+    .badge.host { background: #e0f2fe; color: #0369a1; }
+    .badge.guest { background: #fef3c7; color: #b45309; }
+    
+    .role-list { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+    .role-card { display: flex; align-items: center; justify-content: space-between; border: 2px solid #ddd; padding: 14px; border-radius: 8px; transition: all 0.2s; }
+    .role-card.taken { background: #f5f5f5; border-color: #ddd; opacity: 0.7; }
+    .role-card.selected { border-color: #2563eb; background: #eff6ff; }
+    
+    button { cursor: pointer; padding: 8px 16px; border-radius: 6px; border: none; font-weight: bold; }
+    .btn-select { background: #2563eb; color: #fff; }
+    .btn-select:disabled { background: #ccc; cursor: not-allowed; }
+    
+    #share-box { background: #f8fafc; border: 1px dashed #cbd5e1; padding: 12px; border-radius: 6px; margin-top: 12px; word-break: break-all; font-size: 13px; }
+    #log { background: #1e293b; color: #f8fafc; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 12px; height: 120px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+
+  <h1>非対称協力ゲーム：ロビー接続テスト</h1>
+  
+  <div class="card">
+    <div>現在のあなたの立場: <span id="my-badge" class="badge">接続中...</span></div>
+    <div id="host-panel" style="display:none; margin-top: 12px;">
+      <p style="margin: 0; font-size: 14px; font-weight: bold;">ゲスト用 招待URL:</p>
+      <div id="share-box">発行待機中...</div>
+    </div>
+  </div>
+
+  <!-- 役職選択エリア -->
+  <div class="card">
+    <h2>役職選択（各1名・リアルタイム同期）</h2>
+    <div class="role-list">
+      
+      <div class="role-card" id="card-A">
+        <div>
+          <strong>役職 A（例: 潜入者）</strong>
+          <div style="font-size: 12px; color: #666;" id="holder-A">未選択</div>
+        </div>
+        <button class="btn-select" id="btn-A" onclick="chooseRole('A')">選択する</button>
+      </div>
+
+      <div class="role-card" id="card-B">
+        <div>
+          <strong>役職 B（例: 管制官）</strong>
+          <div style="font-size: 12px; color: #666;" id="holder-B">未選択</div>
+        </div>
+        <button class="btn-select" id="btn-B" onclick="chooseRole('B')">選択する</button>
+      </div>
+
+      <div class="role-card" id="card-C">
+        <div>
+          <strong>役職 C（例: 暗号解読班）</strong>
+          <div style="font-size: 12px; color: #666;" id="holder-C">未選択</div>
+        </div>
+        <button class="btn-select" id="btn-C" onclick="chooseRole('C')">選択する</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>通信ログ</h2>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    const logBox = document.getElementById('log');
+    function log(msg) {
+      logBox.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // URLパラメーター ?room= の有無で親機（Host）か子機（Guest）かを判定
+    const urlParams = new URLSearchParams(window.location.search);
+    const hostRoomId = urlParams.get('room');
+    const isHost = !hostRoomId;
+
+    const peer = new Peer();
+    let myId = '';
+    let myCurrentRole = null;
+    let connections = []; // ホスト用: 参加している全員の接続
+    let hostConn = null;  // ゲスト用: ホストへの接続
+
+    // 役職の専有状態（ホストがマスターデータを管理）
+    // { A: "peerId", B: null, C: "peerId" }
+    let rolesState = { A: null, B: null, C: null };
+
+    peer.on('open', (id) => {
+      myId = id;
+
+      if (isHost) {
+        // --- ホスト側の初期化 ---
+        document.getElementById('my-badge').className = 'badge host';
+        document.getElementById('my-badge').textContent = 'ホスト (部屋主)';
+        document.getElementById('host-panel').style.display = 'block';
+
+        const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${myId}`;
+        document.getElementById('share-box').textContent = inviteUrl;
+        log(`ホスト起動完了。部屋ID: ${myId}`);
+
+        // ゲストの入室受付
+        peer.on('connection', (conn) => {
+          conn.on('open', () => {
+            connections.push(conn);
+            log(`ゲスト参加: ${conn.peer} (計 ${connections.length + 1} 人)`);
+            // 現在の役職選択状況を新入室者に即送信
+            conn.send({ type: 'ROLES_SYNC', roles: rolesState });
+          });
+
+          // ゲストから役職選択リクエストを受信
+          conn.on('data', (data) => {
+            if (data.type === 'SELECT_ROLE') {
+              handleRoleSelection(conn.peer, data.role);
+            }
+          });
+
+          // ゲストが退出したとき
+          conn.on('close', () => {
+            connections = connections.filter(c => c.peer !== conn.peer);
+            // 退出した人の役職を解放
+            for (const r in rolesState) {
+              if (rolesState[r] === conn.peer) rolesState[r] = null;
+            }
+            broadcastRoles();
+            updateUI();
+            log(`ゲスト退出: ${conn.peer}`);
+          });
+        });
+
+      } else {
+        // --- ゲスト側の初期化 ---
+        document.getElementById('my-badge').className = 'badge guest';
+        document.getElementById('my-badge').textContent = 'ゲスト (参加者)';
+        log(`ホスト (${hostRoomId}) へ接続中...`);
+
+        hostConn = peer.connect(hostRoomId);
+
+        hostConn.on('open', () => {
+          log('ホストに接続成功！役職を選択してください。');
+        });
+
+        // ホストから最新の役職状態を受信
+        hostConn.on('data', (data) => {
+          if (data.type === 'ROLES_SYNC') {
+            rolesState = data.roles;
+            updateUI();
+          }
+        });
+
+        hostConn.on('close', () => {
+          log('ホストとの接続が切断されました。');
+        });
+      }
+    });
+
+    // 役職選択の処理（ホストで一括判定）
+    function handleRoleSelection(peerId, role) {
+      // すでに他の人が選んでいる場合は無視
+      if (rolesState[role] && rolesState[role] !== peerId) return;
+
+      // 以前選んでいた役職があれば解除
+      for (const r in rolesState) {
+        if (rolesState[r] === peerId) rolesState[r] = null;
+      }
+
+      // 選択した役職に割り当て
+      rolesState[role] = peerId;
+      broadcastRoles();
+      updateUI();
+    }
+
+    // ホストから全ゲストへ最新状態を同期
+    function broadcastRoles() {
+      const payload = { type: 'ROLES_SYNC', roles: rolesState };
+      connections.forEach(conn => {
+        if (conn.open) conn.send(payload);
+      });
+    }
+
+    // ボタンを押して役職を選ぶ
+    window.chooseRole = function(role) {
+      if (isHost) {
+        handleRoleSelection(myId, role);
+      } else {
+        if (hostConn && hostConn.open) {
+          hostConn.send({ type: 'SELECT_ROLE', role: role });
+        }
+      }
+    };
+
+    // 画面表示（UI）の更新
+    function updateUI() {
+      ['A', 'B', 'C'].forEach(role => {
+        const holderId = rolesState[role];
+        const card = document.getElementById(`card-${role}`);
+        const holderLabel = document.getElementById(`holder-${role}`);
+        const btn = document.getElementById(`btn-${role}`);
+
+        card.classList.remove('taken', 'selected');
+
+        if (!holderId) {
+          // 誰も選んでいない
+          holderLabel.textContent = '空き';
+          holderLabel.style.color = '#16a34a';
+          btn.disabled = false;
+          btn.textContent = '選択する';
+        } else if (holderId === myId) {
+          // 自分が選んでいる
+          myCurrentRole = role;
+          holderLabel.textContent = 'あなたが選択中';
+          holderLabel.style.color = '#2563eb';
+          card.classList.add('selected');
+          btn.disabled = true;
+          btn.textContent = '選択済';
+        } else {
+          // 他の人が選んでいる（枠が埋まっている）
+          holderLabel.textContent = `選択済 (${holderId.slice(0, 5)}...)`;
+          holderLabel.style.color = '#888';
+          card.classList.add('taken');
+          btn.disabled = true;
+          btn.textContent = '選択不可';
+        }
+      });
+    }
+  </script>
+</body>
+</html>
