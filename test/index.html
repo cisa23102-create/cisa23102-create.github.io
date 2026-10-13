@@ -246,6 +246,19 @@
       background: var(--accent); color: #000; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; align-self: flex-start;
     }
 
+    /* ホスト閲覧モード時の入力干渉防止 (観覧専用) */
+    .host-view-mode input,
+    .host-view-mode textarea {
+      pointer-events: none !important;
+      opacity: 0.8;
+      cursor: default !important;
+    }
+    .host-view-mode button:not(.tab-btn):not(.refresh-btn) {
+      pointer-events: none !important;
+      opacity: 0.6;
+      cursor: not-allowed !important;
+    }
+
     /* ホスト常駐型フローティングコンソール */
     #hostFloatingConsole {
       position: fixed; bottom: 12px; right: 12px; width: 440px; z-index: 9999;
@@ -266,7 +279,7 @@
       <div>残り時間: <span class="timer-badge">06:<span id="sec10" class="timer-sec10">0</span><span id="sec1">0</span></span></div>
       <div>進捗: <span id="syncProgress" style="font-weight:bold; color:var(--accent);">0 / 3 完了</span></div>
       <div id="roleIndicator" style="font-weight:bold; color:var(--yellow);">未確定</div>
-      <!-- ホスト専用視点切替バー -->
+      <!-- ホスト専用視点切替バー (ゲーム開始後に表示) -->
       <div id="hostRoleSwitcher" style="display:none; margin-left:10px; align-items:center; gap:6px;">
         <span style="font-size:0.8rem; color:var(--text-muted);">視点切替:</span>
         <button class="role-btn active" id="host-view-PL1" onclick="hostChangeView('PL1')">PL1</button>
@@ -567,7 +580,14 @@
     function setView(viewId) {
       document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
       const target = document.getElementById(viewId);
-      if (target) target.classList.add('active');
+      if (target) {
+        target.classList.add('active');
+        if (viewId === 'view-game' && myRole === 'HOST') {
+          target.classList.add('host-view-mode');
+        } else {
+          target.classList.remove('host-view-mode');
+        }
+      }
     }
 
     // --- 起動・ルーティング ---
@@ -579,7 +599,7 @@
         myRole = 'HOST';
         document.getElementById('roleIndicator').textContent = "ホスト管理者";
         document.getElementById('roleIndicator').style.color = "var(--accent)";
-        document.getElementById('hostRoleSwitcher').style.display = 'flex';
+        document.getElementById('hostRoleSwitcher').style.display = 'none'; // 開始前は非表示
         document.getElementById('hostFloatingConsole').style.display = 'block';
         setView('view-host');
         initHostPeer();
@@ -686,7 +706,6 @@
       } else if (data.type === 'LOG_ERROR') {
         hostLog(`【入力ミス】[${data.senderRole}] ${data.detail}`, 'error');
       } else if (data.type === 'HOST_MONITOR_UPDATE') {
-        // PL2のリアルタイムタブ移動などを反映
         if (data.role === 'PL2' && data.field === 'tab') {
           hostLog(`[PL2 画面切替] ${data.val} へ移動`, 'normal');
         }
@@ -720,7 +739,10 @@
       });
       hostLog("全員の準備が完了しました。ゲーム本番開始（制限時間6分）", 'info');
 
-      // ホスト画面自身もゲーム画面（初期はPL1視点）へ遷移！
+      // ゲーム開始後に初めてホストの視点切り替えバーを表示
+      document.getElementById('hostRoleSwitcher').style.display = 'flex';
+
+      // ホスト画面自身もゲーム画面（初期はPL1視点・閲覧専用モード）へ遷移
       initGameView();
       setView('view-game');
     }
@@ -774,6 +796,9 @@
       roleTaken = { PL1: false, PL2: false, PL3: false };
       readyPlayers = { PL1: false, PL2: false, PL3: false };
       broadcastToClients({ type: 'RESET_TO_SELECT' });
+      document.getElementById('hostRoleSwitcher').style.display = 'none'; // 非表示に戻す
+      const gameContainer = document.getElementById('view-game');
+      if (gameContainer) gameContainer.classList.remove('host-view-mode');
       setView('view-host');
       hostLog("プレイヤー選択画面へリセットしました", 'warn');
     }
@@ -876,9 +901,12 @@
       renderOtpPanel();
       renderModules();
       renderChatLog();
+
+      if (myRole === "PL3") {
+        sendMonitorUpdate("module", "1 / 3 表示中");
+      }
     }
 
-    // 現在の有効役職（ホストの場合は現在見ているホスト視点）を取得
     function getActiveViewRole() {
       return (myRole === 'HOST') ? hostViewingRole : myRole;
     }
@@ -1015,7 +1043,10 @@
           else { activeLine = lineKey; break; }
         }
         const pEl = document.getElementById('pl3ProgressText');
-        if (pEl) pEl.textContent = `${Math.min(solvedCount + 1, 3)} / 3 ${activeLine ? '表示中' : '全完了'}`;
+        const progStr = `${Math.min(solvedCount + 1, 3)} / 3 ${activeLine ? '表示中' : '全完了'}`;
+        if (pEl) pEl.textContent = progStr;
+        sendMonitorUpdate("module", progStr);
+
         if (activeLine) myTasks = myTasks.filter(t => t.line === activeLine);
       }
 
@@ -1196,6 +1227,7 @@
 
     // --- ロック解除処理 ---
     function tryUnlock(btnEl, moduleId) {
+      if (myRole === 'HOST') return;
       const box = btnEl.closest('.lock-box');
       const input = box.querySelector('.unlock-pass-field');
       const err = box.querySelector('.unlock-err-msg');
@@ -1218,6 +1250,7 @@
     }
 
     function executeB2Convert() {
+      if (myRole === 'HOST') return;
       const input = document.getElementById('b2Input');
       b2InputVal = input ? input.value.trim() : "";
       const sec10 = parseInt(document.getElementById('sec10').textContent, 10);
@@ -1246,17 +1279,20 @@
     }
 
     function selectSym(lineKey, sym) {
+      if (myRole === 'HOST') return;
       selectedInputs[lineKey].sym = sym;
       renderModules();
       sendMonitorUpdate("a3", `記号:${sym} / 色:${selectedInputs[lineKey].col || '-'}`);
     }
     function selectCol(lineKey, colName) {
+      if (myRole === 'HOST') return;
       selectedInputs[lineKey].col = colName;
       renderModules();
       sendMonitorUpdate("a3", `記号:${selectedInputs[lineKey].sym || '-'} / 色:${colName}`);
     }
 
     function submitSymbolPipeline(lineKey) {
+      if (myRole === 'HOST') return;
       const line = pipelineData[lineKey];
       const cur = selectedInputs[lineKey];
       const resSpan = document.getElementById(`result-${lineKey}`);
@@ -1277,6 +1313,7 @@
     }
 
     function pressNumpad(num) {
+      if (myRole === 'HOST') return;
       if (numpadInputB.length < 3) {
         numpadInputB += num;
         document.getElementById('numpadDisplay').textContent = numpadInputB;
@@ -1284,17 +1321,20 @@
       }
     }
     function clearNumpad() {
+      if (myRole === 'HOST') return;
       numpadInputB = "";
       document.getElementById('numpadDisplay').textContent = "---";
       sendMonitorUpdate("numpad", "クリア");
     }
     function backspaceNumpad() {
+      if (myRole === 'HOST') return;
       numpadInputB = numpadInputB.slice(0, -1);
       document.getElementById('numpadDisplay').textContent = numpadInputB || "---";
       sendMonitorUpdate("numpad", numpadInputB || "空");
     }
 
     function submitNumericPipeline(lineKey) {
+      if (myRole === 'HOST') return;
       const resSpan = document.getElementById(`result-${lineKey}`);
       if (numpadInputB.length !== 3) {
         resSpan.innerHTML = "<span style='color:var(--red);'>3桁入力してください</span>";
@@ -1312,6 +1352,7 @@
     }
 
     function pressSeqBtn(num) {
+      if (myRole === 'HOST') return;
       if (lineCSolved) return;
       if (num === currentTargetNumC) {
         const pressed = currentTargetNumC;
@@ -1382,6 +1423,7 @@
     }
 
     function sendMessage() {
+      if (myRole === 'HOST') return;
       const input = document.getElementById('chatInput');
       const text = input.value.trim();
       if (!text || text.length > 40) return;
