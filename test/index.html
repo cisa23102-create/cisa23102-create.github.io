@@ -142,7 +142,7 @@
     /* ★今開いている部分・アクティブカードを光らせるエフェクト */
     .active-focus-card {
       border-color: var(--yellow) !important;
-      box-shadow: 0 0 14px rgba(234, 179, 8, 0.35) !important;
+      box-shadow: 0 0 16px rgba(234, 179, 8, 0.45) !important;
     }
     .active-tab-glow {
       border-color: var(--accent) !important;
@@ -364,7 +364,7 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- 画面4: ゲームプレイ画面 (画像完全再現UI)                                   -->
+  <!-- 画面4: ゲームプレイ画面                                                   -->
   <!-- ========================================================================= -->
   <div id="view-game" class="view-container" style="max-width:1100px;">
     <!-- PL2専用タブバー -->
@@ -480,10 +480,10 @@
     let roleTaken = { PL1: false, PL2: false, PL3: false };
     let readyPlayers = { PL1: false, PL2: false, PL3: false };
 
-    // 各PLのリアルタイムUI完全状態（ホスト同期用）
+    // 各PLのリアルタイムUI状態
     let plClientStates = {
       PL1: { chatInput: "", memo: "", b2Input: "", b2Key: null },
-      PL2: { activeTab: "module", chatInput: "", memo: "", numpad: "", unlockInputs: {} },
+      PL2: { activeTab: "module", chatInput: "", memo: "", numpad: "", unlocked: { "A-2": false, "B-3": false, "C-1": false } },
       PL3: { chatInput: "", memo: "", activeLine: null, curSym: null, curCol: null }
     };
 
@@ -501,7 +501,7 @@
     };
 
     let bTargetPasscode = "729";
-    let allNums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => Math.random() - 0.5);
+    const allNums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => Math.random() - 0.5);
     let lineCButtonsByRole = {
       PL1: allNums.slice(0, 4).sort((a,b) => a - b),
       PL2: allNums.slice(4, 8).sort((a,b) => a - b),
@@ -643,12 +643,9 @@
 
       peer.on('connection', conn => {
         connections.push(conn);
-        hostLog(`参加者接続: ${conn.peer}`, 'info');
-
         conn.on('data', data => {
           handleDataAsHost(conn, data);
         });
-
         conn.on('close', () => {
           connections = connections.filter(c => c !== conn);
           hostLog(`参加者切断: ${conn.peer}`, 'warn');
@@ -662,6 +659,7 @@
       navigator.clipboard.writeText(input.value).then(() => alert("参加URLをコピーしました！"));
     }
 
+    // ホストコンソールログ出力（時間・PL名・モジュール名・成否・メッセージを明確に記録）
     function hostLog(msg, type = 'normal') {
       const box = document.getElementById('hostLogBox');
       if (!box) return;
@@ -673,7 +671,7 @@
       if (type === 'chat') color = '#38bdf8';
       if (type === 'info') color = '#c084fc';
 
-      box.innerHTML += `<div style="color:${color}; margin-bottom:2px;">[${time}] ${msg}</div>`;
+      box.innerHTML += `<div style="color:${color}; margin-bottom:3px;">[${time}] ${msg}</div>`;
       box.scrollTop = box.scrollHeight;
     }
 
@@ -687,24 +685,24 @@
       area.style.display = (area.style.display === 'none') ? 'block' : 'none';
     }
 
-    // ホストデータ処理
+    // ホスト側イベント受信処理
     function handleDataAsHost(senderConn, data) {
       if (data.type === 'SELECT_ROLE') {
         roleTaken[data.role] = true;
         document.getElementById(`host-status-${data.role.toLowerCase()}`).textContent = "選択済";
         document.getElementById(`host-status-${data.role.toLowerCase()}`).style.color = "var(--green)";
-        hostLog(`【参加登録】${data.role} が枠を確定`, 'info');
+        hostLog(`【参加登録】${data.role} が参加枠を確定`, 'info');
         broadcastToClients({ type: 'ROLE_TAKEN_SYNC', roleTaken: roleTaken });
       } else if (data.type === 'CONFIRM_READY') {
         readyPlayers[data.role] = true;
-        hostLog(`【準備完了】${data.role} が確認ボタンを押下`, 'info');
+        hostLog(`【準備完了】${data.role} がチュートリアル確認ボタンを押下`, 'info');
         if (readyPlayers.PL1 && readyPlayers.PL2 && readyPlayers.PL3) {
           hostStartGame();
         }
       } else if (data.type === 'SOLVED') {
         if (data.line === 'C') lineCSolved = true;
         else pipelineData[data.line].step3.solved = true;
-        hostLog(`【解除成功】${data.senderRole} が [ライン${data.line}] の認証に成功しました！`, 'info');
+        hostLog(`【解除成功】[${data.senderRole}] が [ライン${data.line}] の認証に成功し解除を完了しました！`, 'info');
         checkGameClear();
         broadcastToClients(data);
         renderModules();
@@ -714,41 +712,37 @@
         broadcastToClients(data);
         renderChatLog();
       } else if (data.type === 'SEQ_UPDATE') {
-        currentTargetNumC = data.nextTarget;
-        hostLog(`[ラインC] 正解押下: [${data.pressedNum}] (次の目標番号: [${data.nextTarget}]) by ${data.senderRole}`);
+        hostLog(`【正しい入力】[ラインC] ${data.senderRole} が番号 [${data.pressedNum}] を押下 (次の目標番号: [${data.nextTarget}])`);
         broadcastToClients(data);
         renderModules();
       } else if (data.type === 'SEQ_RESET') {
-        currentTargetNumC = 1;
-        lineCButtonsByRole = data.buttons;
-        hostLog(`【順番ミス】[ラインC] ${data.senderRole} が誤って [${data.wrongNum}] を押下！(正解は [${data.expectedNum}]) ➜ 1からやり直し＆再シャッフル`, 'error');
+        hostLog(`【間違えた入力】[ラインC] ${data.senderRole} が誤って [${data.wrongNum}] を押下 (正解は [${data.expectedNum}]) ➜ リセット＆再シャッフル実行`, 'error');
         broadcastToClients(data);
         renderModules();
       } else if (data.type === 'LOG_ERROR') {
-        hostLog(`【入力ミス】[${data.senderRole}] ${data.detail}`, 'error');
-      } 
-      // ★ PLからの完全リアルタイム状態同期
-      else if (data.type === 'PL_FULL_STATE_SYNC') {
+        hostLog(`【間違えた入力】[${data.senderRole}] ${data.detail}`, 'error');
+      } else if (data.type === 'PL_UNLOCK_SUCCESS') {
+        pl2Unlocked[data.moduleId] = true;
+        hostLog(`【ロック解除】[${data.role}] がモジュール [${data.moduleId}] の画面ロック解除に成功`, 'info');
+        renderModules();
+      } else if (data.type === 'PL_FULL_STATE_SYNC') {
         plClientStates[data.role] = data.state;
-        // ホストが現在そのPLを見ている場合、画面を完全同期反映
+        if (data.state.unlocked) {
+          Object.assign(pl2Unlocked, data.state.unlocked);
+        }
         if (myRole === 'HOST' && hostViewingRole === data.role) {
           applyPlStateToHostScreen(data.role, data.state);
         }
       }
     }
 
-    // ホストの画面をそのPLのリアルタイム状態に同期させる
     function applyPlStateToHostScreen(role, state) {
       if (!state) return;
-
-      // チャット入力欄
       const chatInput = document.getElementById('chatInput');
       if (chatInput && document.activeElement !== chatInput) {
         chatInput.value = state.chatInput || "";
         document.getElementById('charCount').textContent = (state.chatInput || "").length;
       }
-
-      // メモ欄
       if (role === 'PL2') {
         const pl2Memo = document.getElementById('pl2DedicatedTextarea');
         if (pl2Memo) pl2Memo.value = state.memo || "";
@@ -759,21 +753,16 @@
         const memo = document.getElementById('chatMemoTextarea');
         if (memo) memo.value = state.memo || "";
       }
-
-      // B-2 入力欄
       if (role === 'PL1') {
         const b2In = document.getElementById('b2Input');
         if (b2In) b2In.value = state.b2Input || "";
         const b2Badge = document.getElementById('b2ResultBadge');
         if (b2Badge) b2Badge.textContent = state.b2Key || "---";
       }
-
-      // テンキー表示
       if (role === 'PL2') {
         const np = document.getElementById('numpadDisplay');
         if (np) np.textContent = state.numpad || "---";
       }
-
       renderModules();
     }
 
@@ -803,10 +792,7 @@
         bPass: bTargetPasscode
       });
       hostLog("全員の準備が完了しました。ゲーム本番開始（制限時間6分）", 'info');
-
-      // 開始後にホスト視点切り替えバーを表示
       document.getElementById('hostRoleSwitcher').style.display = 'flex';
-
       initGameView();
       setView('view-game');
     }
@@ -816,11 +802,9 @@
       document.querySelectorAll('#hostRoleSwitcher .role-btn').forEach(btn => {
         btn.classList.toggle('active', btn.id === `host-view-${role}`);
       });
-      hostLog(`[ホスト操作] プレビュー視点を ${role} に切り替えました`, 'normal');
       applyLayoutByRole();
       renderModules();
 
-      // 切り替えたPLの最新状態をホスト画面に復元
       if (plClientStates[role]) {
         applyPlStateToHostScreen(role, plClientStates[role]);
       }
@@ -963,7 +947,6 @@
       }
     }
 
-    // --- ゲーム画面構築 ---
     function initGameView() {
       applyLayoutByRole();
       renderOtpPanel();
@@ -996,7 +979,7 @@
         switchPl2Tab(pl2ActiveTab);
       } else if (activeRole === "PL3") {
         pl2Bar.style.display = "none";
-        pl3Banner.style.display = "flex";
+        pl3Banner.style.display = (myRole === 'HOST') ? "none" : "flex";
         mainGrid.className = "main-grid";
         modulesSection.style.display = "flex";
         chatSection.style.display = "flex";
@@ -1016,7 +999,6 @@
       }
     }
 
-    // PL2タブ切り替え＆アクティブ枠光らせ
     function switchPl2Tab(tab) {
       pl2ActiveTab = tab;
       const modulesSection = document.getElementById('modulesSection');
@@ -1035,7 +1017,6 @@
       chatSection.style.display = (tab === 'chat') ? "flex" : "none";
       pl2MemoSection.style.display = (tab === 'memo') ? "flex" : "none";
 
-      // 開いているエリアを光らせるクラスの制御
       modulesSection.classList.toggle('active-tab-glow', tab === 'module');
       chatSection.classList.toggle('active-tab-glow', tab === 'chat');
       pl2MemoSection.classList.toggle('active-tab-glow', tab === 'memo');
@@ -1043,7 +1024,6 @@
       syncMyStateToHost({ activeTab: tab });
     }
 
-    // PL側からホストへ現在の状態をフル同期
     function syncMyStateToHost(partialUpdate = {}) {
       if (myRole === 'HOST') return;
       if (!plClientStates[myRole]) plClientStates[myRole] = {};
@@ -1060,7 +1040,7 @@
 
     function sendErrorLog(detail) {
       if (myRole === 'HOST') {
-        hostLog(`【入力ミス】[HOST試行] ${detail}`, 'error');
+        hostLog(`【間違えた入力】[HOST試行] ${detail}`, 'error');
       } else if (hostConn && hostConn.open) {
         hostConn.send({ type: 'LOG_ERROR', senderRole: myRole, detail: detail });
       }
@@ -1113,21 +1093,25 @@
 
       let myTasks = [...roleAssignments[activeRole]];
 
+      // ★ PL3の処理:
+      // PL3本人には1つずつ順次開示するが、
+      // ホスト視点で見ている場合は「3つともすべて表示」し、PL3本人が今開いているモジュール枠を黄色く光らせる！
+      let pl3ActiveLine = null;
+      let solvedCount = 0;
+      for (const lineKey of pl3ShuffledOrder) {
+        const isSolved = (lineKey === 'C' ? lineCSolved : pipelineData[lineKey].step3.solved);
+        if (isSolved) solvedCount++;
+        else if (!pl3ActiveLine) { pl3ActiveLine = lineKey; }
+      }
+
       if (activeRole === "PL3") {
-        let activeLine = null;
-        let solvedCount = 0;
-        for (const lineKey of pl3ShuffledOrder) {
-          const isSolved = (lineKey === 'C' ? lineCSolved : pipelineData[lineKey].step3.solved);
-          if (isSolved) solvedCount++;
-          else { activeLine = lineKey; break; }
-        }
         const pEl = document.getElementById('pl3ProgressText');
-        const progStr = `${Math.min(solvedCount + 1, 3)} / 3 ${activeLine ? '表示中' : '全完了'}`;
+        const progStr = `${Math.min(solvedCount + 1, 3)} / 3 ${pl3ActiveLine ? '表示中' : '全完了'}`;
         if (pEl) pEl.textContent = progStr;
 
-        if (activeLine) {
-          myTasks = myTasks.filter(t => t.line === activeLine);
-          syncMyStateToHost({ activeLine: activeLine });
+        if (myRole === "PL3" && pl3ActiveLine) {
+          myTasks = myTasks.filter(t => t.line === pl3ActiveLine);
+          syncMyStateToHost({ activeLine: pl3ActiveLine });
         }
       }
 
@@ -1136,14 +1120,38 @@
         const line = pipelineData[lineKey];
         const stepNum = task.step;
         const moduleId = `${lineKey}-${stepNum}`;
-        const isLocked = (activeRole === "PL2" && !pl2Unlocked[moduleId]);
         const isCompleted = (lineKey === 'C' ? lineCSolved : line.step3.solved);
 
-        // ★PL3で現在作業中のカード、または未解除のアクティブカードを光らせる
-        const isActiveTask = !isCompleted && !isLocked;
+        // ロック判定:
+        // PL2本人にはロック中ならロック画面を出す。
+        // ホスト側では「モジュールの中身を最初から見せる」＋「PL2がロック解除したかどうか」のバッジを表示する。
+        const isPl2LockedForPlayer = (activeRole === "PL2" && !pl2Unlocked[moduleId] && myRole !== 'HOST');
+        const isPl2Module = (activeRole === "PL2");
+
+        // 発光判定:
+        // PL3のカードのうち、PL3本人が今開いているアクティブなカードを黄色く発光
+        const isPl3ActiveCard = (activeRole === "PL3" && lineKey === pl3ActiveLine && !isCompleted);
+        const isActiveTask = !isCompleted && !isPl2LockedForPlayer;
 
         const card = document.createElement('div');
-        card.className = `pipeline-card ${isCompleted ? 'completed' : ''} ${isActiveTask ? 'active-focus-card' : ''}`;
+        card.className = `pipeline-card ${isCompleted ? 'completed' : ''} ${(isPl3ActiveCard || (activeRole !== 'PL3' && isActiveTask)) ? 'active-focus-card' : ''}`;
+
+        // ヘッダー部
+        let statusBadgeText = isCompleted ? '● 解除済み' : '○ 操作可能';
+        let statusBadgeColor = isCompleted ? 'var(--green)' : 'var(--accent)';
+
+        if (isPl2Module) {
+          if (isCompleted) {
+            statusBadgeText = '● 解除完了';
+            statusBadgeColor = 'var(--green)';
+          } else if (pl2Unlocked[moduleId]) {
+            statusBadgeText = '🔓 PL2解除済 (作業中)';
+            statusBadgeColor = 'var(--yellow)';
+          } else {
+            statusBadgeText = '🔒 PL2未解除 (ロック中)';
+            statusBadgeColor = 'var(--red)';
+          }
+        }
 
         const headerHtml = `
           <div class="card-header">
@@ -1151,13 +1159,14 @@
               <span class="pipe-tag ${line.tagClass}">${moduleId}</span>
               <span style="font-weight:bold; margin-left:6px;">${line.name}</span>
             </div>
-            <span style="font-size:0.8rem; color:${isCompleted ? 'var(--green)' : (isLocked ? 'var(--yellow)' : 'var(--accent)')};">
-              ${isCompleted ? '● 解除済み' : (isLocked ? '🔒 ロック中' : '○ 操作可能')}
+            <span style="font-size:0.8rem; font-weight:bold; color:${statusBadgeColor};">
+              ${statusBadgeText}
             </span>
           </div>
         `;
 
-        if (isLocked) {
+        // PL2本人の画面で未解除ならロック解除入力画面を表示
+        if (isPl2LockedForPlayer) {
           card.innerHTML = `
             ${headerHtml}
             <div class="lock-box">
@@ -1174,6 +1183,7 @@
           return;
         }
 
+        // ホスト、またはロック解除後のPL2、その他の通常モジュール内容を描画
         let stepContent = "";
 
         if (lineKey === 'C') {
@@ -1266,20 +1276,19 @@
                 const res = mData[s][c.name];
                 return `<td><span style="color:${res.hex}; font-weight:bold;">${res.sym}</span><br><span style="color:${res.hex}; font-size:0.7rem;">${res.col}</span></td>`;
               }).join('');
-              return `<tr><th>${s}</th>${cells}</tr>`;
+              return `<tr><th class="row-header">${s}</th>${cells}</tr>`;
             }).join('');
 
             stepContent = `
               <div class="step2-box">
                 <div style="font-weight:bold; font-size:0.8rem; color:var(--accent);">【対応表】</div>
                 <table class="matrix-table">
-                  <thead><tr><th>記号＼色</th>${tableHeaders}</tr></thead>
+                  <thead><tr><th class="corner-header">記号＼色</th>${tableHeaders}</tr></thead>
                   <tbody>${tableRows}</tbody>
                 </table>
               </div>
             `;
           } else if (stepNum === 3) {
-            // ホスト閲覧時はそのPLが選んでいる記号・色を表示
             let curSym = selectedInputs[lineKey].sym;
             let curCol = selectedInputs[lineKey].col;
             if (myRole === 'HOST' && plClientStates[activeRole]) {
@@ -1315,7 +1324,7 @@
       });
     }
 
-    // --- 各種操作 ---
+    // --- ロック解除処理 ---
     function tryUnlock(btnEl, moduleId) {
       if (myRole === 'HOST') return;
       const box = btnEl.closest('.lock-box');
@@ -1328,9 +1337,12 @@
         pl2Unlocked[moduleId] = true;
         renderModules();
         syncMyStateToHost({ unlocked: pl2Unlocked });
+        if (hostConn && hostConn.open) {
+          hostConn.send({ type: 'PL_UNLOCK_SUCCESS', role: myRole, moduleId: moduleId });
+        }
       } else {
         err.textContent = "番号が違うか、期限切れです";
-        sendErrorLog(`[ロック解除失敗] モジュール ${moduleId} (入力値: "${val}" / 正解: "${expected}")`);
+        sendErrorLog(`モジュール ${moduleId} のロック解除失敗 (入力値: "${val}" / 正解PASS: "${expected}")`);
       }
     }
 
@@ -1364,7 +1376,7 @@
         msg.textContent = res.reason;
         msg.style.color = "var(--red)";
         syncMyStateToHost({ b2Key: "ERROR" });
-        sendErrorLog(`[B-2変換失敗] 入力値: "${b2InputVal}", 理由: ${res.reason} (現在の十の位: ${sec10})`);
+        sendErrorLog(`[B-2 変換失敗] 入力値: "${b2InputVal}", 原因: ${res.reason} (現在の十の位: ${sec10})`);
       }
     }
 
@@ -1398,7 +1410,7 @@
         renderModules();
       } else {
         resSpan.innerHTML = "<span style='color:var(--red);'>違います</span>";
-        sendErrorLog(`[ライン${lineKey} 認証失敗] 選択: (記号:${cur.sym}, 色:${cur.col}) / 正解: (記号:${line.step3.targetSym}, 色:${line.step3.targetCol})`);
+        sendErrorLog(`[ライン${lineKey} 選択ミス] 選択: (${cur.sym}, ${cur.col}) / 正解: (${line.step3.targetSym}, ${line.step3.targetCol})`);
       }
     }
 
