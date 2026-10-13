@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>協力通信ゲーム</title>
+  <title>オンライン協調タスク実験システム</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     :root {
@@ -13,7 +13,6 @@
       --text: #f8fafc;
       --text-muted: #94a3b8;
       --accent: #38bdf8;
-      --accent-glow: rgba(56, 189, 248, 0.2);
       --red: #f43f5e;
       --green: #22c55e;
       --yellow: #eab308;
@@ -23,326 +22,267 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: var(--bg); color: var(--text); padding: 12px; }
 
+    /* ヘッダー */
     header {
       display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
       background: var(--card-bg); padding: 10px 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px; gap: 8px;
     }
     .header-title { font-weight: bold; font-size: 1.1rem; color: var(--accent); }
-    .status-group { display: flex; align-items: center; gap: 12px; font-size: 0.9rem; }
+    .status-group { display: flex; align-items: center; gap: 14px; font-size: 0.9rem; }
     .timer-badge { background: #000; padding: 4px 8px; border-radius: 4px; font-family: monospace; border: 1px solid var(--border); }
     .timer-sec10 { color: var(--yellow); font-weight: bold; font-size: 1.1rem; text-decoration: underline; }
 
-    /* 通信設定バー */
-    .net-bar {
-      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-      background: #090d16; padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 0.85rem; border: 1px solid var(--border);
+    /* ボタン共通 */
+    button {
+      background: var(--border); color: var(--text); border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: bold; transition: all 0.15s;
     }
-    .net-bar input { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 4px; }
-    .net-bar button, .role-btn, .tab-btn {
-      background: var(--border); color: var(--text); border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
-    }
-    .net-bar button.action-btn { background: var(--accent); color: #000; font-weight: bold; }
-    .role-btn.active, .tab-btn.active { background: var(--accent); color: #000; font-weight: bold; }
+    button:hover:not(:disabled) { filter: brightness(1.2); }
+    button.btn-primary { background: var(--accent); color: #000; }
+    button.btn-success { background: var(--green); color: #000; }
+    button.btn-warning { background: var(--yellow); color: #000; }
+    button.btn-danger { background: var(--red); color: #fff; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* PL2専用タブバー */
-    .pl2-bar-container {
-      display: none; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;
-      background: #090d16; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); flex-wrap: wrap;
-    }
-    .pl2-tab-group { display: flex; align-items: center; gap: 8px; }
+    /* 共通コンテナ */
+    .view-container { display: none; width: 100%; max-width: 1000px; margin: 0 auto; }
+    .view-container.active { display: block; }
+    .panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
 
-    .main-grid { display: grid; grid-template-columns: 320px 1fr; gap: 12px; }
-    .single-view { display: block !important; }
-    @media (max-width: 850px) { .main-grid { grid-template-columns: 1fr; } }
-
-    /* チャット */
-    .chat-section {
-      background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;
-      display: flex; flex-direction: column; gap: 8px;
-    }
-    .chat-header { display: flex; justify-content: space-between; align-items: center; }
-    .refresh-btn {
-      background: var(--accent); color: #000; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; cursor: pointer;
-    }
-    .unread-badge {
-      background: var(--red); color: #fff; font-size: 0.75rem; padding: 1px 6px; border-radius: 10px; display: none; font-weight: bold;
-    }
-    .rule-box {
-      background: rgba(56, 189, 248, 0.1); border: 1px solid var(--accent); border-radius: 6px; padding: 8px; font-size: 0.8rem; line-height: 1.4;
-    }
-    
-    .chat-log {
-      background: #090d16; border: 1px solid var(--border); border-radius: 6px; padding: 8px;
-      display: flex; flex-direction: column; gap: 6px; overflow-y: auto;
-    }
-    .chat-log.limit-2lines { min-height: 84px; max-height: 190px; justify-content: flex-end; }
-    .chat-log.unlimited-lines { height: 380px; justify-content: flex-start; }
-
-    .chat-msg {
-      background: #1e293b; padding: 6px 8px; border-radius: 4px; font-size: 0.85rem;
-      border-left: 3px solid var(--accent); word-break: break-all;
-    }
-    .chat-msg.mine { border-left-color: var(--green); }
-    .chat-msg .sender { color: var(--text-muted); font-size: 0.75rem; margin-right: 4px; }
-
-    .chat-input-area { display: flex; flex-direction: column; gap: 6px; }
-    .input-row { display: flex; gap: 6px; }
-    .chat-input {
-      flex: 1; background: #090d16; border: 1px solid var(--border); color: var(--text); padding: 6px 8px; border-radius: 4px; font-size: 0.9rem;
-    }
-    .chat-input.error { border-color: var(--red); background: rgba(244, 63, 94, 0.1); }
-    .send-btn { background: var(--accent); color: #000; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; }
-    .send-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
-    .char-counter { font-size: 0.75rem; color: var(--text-muted); text-align: right; }
-
-    .memo-section {
-      margin-top: 6px; border-top: 1px solid var(--border); padding-top: 8px; display: flex; flex-direction: column; gap: 4px;
-    }
-    .memo-header { font-size: 0.8rem; font-weight: bold; color: var(--text-muted); display: flex; justify-content: space-between; }
-    .memo-textarea {
-      background: #090d16; border: 1px solid var(--border); color: var(--text); padding: 6px 8px;
-      border-radius: 4px; font-size: 0.85rem; height: 60px; resize: none; width: 100%;
-    }
-
-    /* モジュール */
-    .modules-section { display: flex; flex-direction: column; gap: 12px; }
-    .otp-display-panel {
-      background: #090d16; border: 1px solid var(--yellow); border-radius: 8px; padding: 10px 14px;
-      display: flex; flex-direction: column; gap: 8px;
-    }
-    .otp-panel-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: bold; color: var(--yellow); }
-    .otp-items-container { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
-    .otp-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
-    .otp-badge {
-      background: #1e293b; color: var(--yellow); border: 1px dashed var(--yellow);
-      padding: 3px 10px; border-radius: 4px; font-family: monospace; font-size: 1.1rem; font-weight: bold;
-    }
-    .otp-timer-box { font-size: 0.8rem; color: var(--text-muted); font-family: monospace; background: #1e293b; padding: 2px 8px; border-radius: 4px; }
-
-    .pl3-info-banner {
-      background: #090d16; border: 1px solid var(--purple); border-radius: 8px; padding: 10px 14px;
-      display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;
-    }
-
-    .pipeline-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; position: relative; }
-    .pipeline-card.completed { border-color: var(--green); background: rgba(34, 197, 94, 0.05); }
-    
-    .lock-box {
-      background: #090d16; border: 1px solid var(--yellow); border-radius: 6px; padding: 18px 14px;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center;
-    }
-    .lock-box input {
-      background: #1e293b; border: 1px solid var(--border); color: var(--text);
-      font-size: 1.1rem; width: 100px; text-align: center; padding: 6px; border-radius: 4px; font-family: monospace;
-    }
-    .unlock-btn { background: var(--yellow); color: #000; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; }
-
-    .card-header {
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
-    }
-    .pipe-tag { font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
-    .pipe-A { background: rgba(56, 189, 248, 0.2); color: var(--accent); border: 1px solid var(--accent); }
-    .pipe-B { background: rgba(234, 179, 8, 0.2); color: var(--yellow); border: 1px solid var(--yellow); }
-    .pipe-C { background: rgba(192, 132, 252, 0.2); color: var(--purple); border: 1px solid var(--purple); }
-
-    .step1-box { display: flex; gap: 12px; align-items: center; }
+    /* ホバー式記号 */
     .hover-sensor {
-      width: 80px; height: 80px; background: #090d16; border: 2px dashed var(--border); border-radius: 8px;
+      width: 76px; height: 76px; background: #090d16; border: 2px dashed var(--border); border-radius: 8px;
       display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;
     }
-    .hover-sensor:hover { border-color: var(--accent); background: var(--accent-glow); }
+    .hover-sensor:hover { border-color: var(--accent); }
     .sensor-secret { display: none; text-align: center; }
     .hover-sensor:hover .sensor-secret { display: block; }
     .hover-sensor:hover .sensor-placeholder { display: none; }
-    .secret-symbol { font-size: 2rem; line-height: 1; }
-    .secret-color { font-size: 0.75rem; font-weight: bold; margin-top: 4px; }
-    .secret-num { font-size: 1.5rem; font-family: monospace; font-weight: bold; color: var(--yellow); }
 
-    .step2-box { background: #090d16; padding: 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.85rem; }
-    .matrix-container { overflow-x: auto; margin-top: 8px; }
-    .matrix-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.8rem; }
-    .matrix-table th, .matrix-table td { border: 1px solid var(--border); padding: 6px 4px; min-width: 55px; }
-    .matrix-table th { background: #1e293b; color: var(--text-muted); font-size: 0.75rem; }
-    .matrix-table .corner-header { background: #0b1329; color: var(--accent); font-weight: bold; }
-    .matrix-table .row-header { background: #1e293b; font-weight: bold; }
-    .cell-val { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
-    .cell-sym { font-size: 1.1rem; line-height: 1; font-weight: bold; }
-    .cell-col { font-size: 0.7rem; font-weight: bold; }
+    /* 2次元表 */
+    .matrix-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.8rem; margin-top: 6px; }
+    .matrix-table th, .matrix-table td { border: 1px solid var(--border); padding: 5px; }
+    .matrix-table th { background: #090d16; color: var(--text-muted); }
 
-    .converter-box {
-      display: flex; flex-direction: column; gap: 8px; background: #090d16; padding: 12px; border-radius: 6px; border: 1px solid var(--yellow);
-    }
-    .converter-input-row { display: flex; gap: 8px; align-items: center; }
-    .converter-input {
-      background: #1e293b; border: 1px solid var(--border); color: var(--text); padding: 6px 10px;
-      font-size: 1.1rem; font-family: monospace; border-radius: 4px; width: 120px; text-align: center;
-    }
-    .convert-btn { background: var(--yellow); color: #000; border: none; padding: 6px 14px; font-weight: bold; border-radius: 4px; cursor: pointer; }
-    .key-result-badge {
-      font-family: monospace; font-size: 1.2rem; font-weight: bold; color: var(--accent);
-      background: #1e293b; padding: 4px 12px; border-radius: 4px; border: 1px solid var(--accent); display: inline-block;
-    }
+    /* チャットUI */
+    .chat-section { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .chat-log { background: #090d16; border: 1px solid var(--border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+    .chat-log.limit-2lines { min-height: 80px; max-height: 180px; justify-content: flex-end; }
+    .chat-log.unlimited { height: 380px; justify-content: flex-start; }
+    .chat-msg { background: #1e293b; padding: 6px 8px; border-radius: 4px; font-size: 0.85rem; border-left: 3px solid var(--accent); word-break: break-all; }
+    .chat-msg.mine { border-left-color: var(--green); }
 
-    .b3-rule-banner {
-      background: rgba(234, 179, 8, 0.1); border: 1px solid var(--yellow); border-radius: 6px; padding: 8px 10px;
-      font-size: 0.85rem; line-height: 1.5; margin-bottom: 8px;
-    }
-    .b3-rule-banner b { color: var(--yellow); }
-
-    .step3-box { display: flex; flex-direction: column; gap: 10px; }
-    .selection-group { display: flex; flex-direction: column; gap: 4px; }
-    .selection-label { font-size: 0.75rem; color: var(--text-muted); }
-    .selector-row { display: flex; gap: 8px; flex-wrap: wrap; }
-    
-    .sym-btn {
-      width: 44px; height: 44px; font-size: 1.5rem; background: #090d16; border: 1px solid var(--border);
-      color: var(--text); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-    }
-    .sym-btn:hover { border-color: var(--accent); }
-    .sym-btn.selected { border-color: var(--green); background: rgba(34, 197, 94, 0.2); }
-
-    .color-btn {
-      padding: 6px 12px; font-size: 0.85rem; background: #090d16; border: 1px solid var(--border);
-      border-radius: 6px; cursor: pointer; font-weight: bold;
-    }
-    .color-btn:hover { filter: brightness(1.2); }
-    .color-btn.selected { outline: 2px solid #fff; outline-offset: 1px; }
-
-    .numpad-container { display: flex; flex-direction: column; gap: 6px; width: 180px; }
-    .numpad-display {
-      background: #090d16; border: 1px solid var(--border); color: var(--yellow); font-family: monospace;
-      font-size: 1.3rem; text-align: center; padding: 6px; border-radius: 4px; height: 38px;
-    }
-    .numpad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
-    .numpad-btn {
-      background: #1e293b; border: 1px solid var(--border); color: var(--text);
-      padding: 8px 0; font-size: 1.1rem; border-radius: 4px; cursor: pointer; font-family: monospace; font-weight: bold;
-    }
-    .numpad-btn:hover { background: var(--border); }
-
-    .seq-box {
-      display: flex; flex-direction: column; gap: 10px; background: #090d16; padding: 12px; border-radius: 6px; border: 1px solid var(--purple);
-    }
-    .seq-target-bar { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
-    .seq-buttons-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+    /* ラインCボタンスタイル */
     .seq-btn {
-      width: 52px; height: 52px; font-size: 1.3rem; font-family: monospace; font-weight: bold;
+      width: 48px; height: 48px; font-size: 1.2rem; font-family: monospace; font-weight: bold;
       background: #1e293b; border: 2px solid var(--purple); color: #fff; border-radius: 8px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
     }
-    .seq-btn:hover:not(:disabled) { background: rgba(192, 132, 252, 0.25); border-color: var(--accent); }
-    .seq-btn.pressed { background: rgba(34, 197, 94, 0.15); border-color: var(--green); color: var(--green); opacity: 0.6; cursor: default; }
-    .seq-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+    .seq-btn.pressed { background: rgba(34, 197, 94, 0.2); border-color: var(--green); color: var(--green); opacity: 0.6; cursor: default; }
 
-    .exec-btn {
-      background: var(--accent); color: #000; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; align-self: flex-start;
-    }
-    .exec-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+    /* テンキー */
+    .numpad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 160px; }
+    .numpad-btn { background: #1e293b; border: 1px solid var(--border); color: var(--text); padding: 8px 0; font-size: 1.1rem; border-radius: 4px; font-family: monospace; }
+
+    /* ホスト管理コンソール */
+    .host-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .host-col { background: #090d16; border: 1px solid var(--border); border-radius: 6px; padding: 10px; font-size: 0.8rem; }
+    .log-box { background: #000; border: 1px solid var(--border); color: #22c55e; font-family: monospace; height: 160px; padding: 8px; overflow-y: auto; font-size: 0.75rem; }
   </style>
 </head>
 <body>
 
+  <!-- ヘッダー -->
   <header>
-    <div class="header-title">協力通信ゲーム</div>
+    <div class="header-title" id="systemTitle">オンライン協調タスク</div>
     <div class="status-group">
-      <div>タイマー: <span class="timer-badge">04:<span id="sec10" class="timer-sec10">3</span><span id="sec1">5</span></span></div>
+      <div>残り時間: <span class="timer-badge">06:<span id="sec10" class="timer-sec10">0</span><span id="sec1">0</span></span></div>
       <div>進捗: <span id="syncProgress" style="font-weight:bold; color:var(--accent);">0 / 3 完了</span></div>
+      <div id="roleIndicator" style="font-weight:bold; color:var(--yellow);">役職: 未確定</div>
     </div>
   </header>
 
-  <!-- 通信接続バー -->
-  <div class="net-bar">
-    <div>
-      <span><b>あなたの接続ID:</b> <span id="myPeerId" style="color:var(--accent); font-family:monospace; font-weight:bold;">生成中...</span></span>
-      <button onclick="copyMyId()" style="margin-left:4px; padding:2px 6px;">コピー</button>
+  <!-- ========================================================================= -->
+  <!-- 画面1: ホスト管理ダッシュボード                                           -->
+  <!-- ========================================================================= -->
+  <div id="view-host" class="view-container">
+    <div class="panel">
+      <h3 style="color:var(--accent); margin-bottom:8px;">🛠️ ホスト管理コンソール</h3>
+      <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <span>共有用参加URL:</span>
+        <input type="text" id="shareUrlInput" readonly style="flex:1; min-width:300px; background:#090d16; border:1px solid var(--border); color:var(--text); padding:6px; border-radius:4px; font-family:monospace;">
+        <button class="btn-primary" onclick="copyShareUrl()">URLコピー</button>
+      </div>
+
+      <div style="display:flex; gap:16px; margin-bottom:12px; padding:10px; background:#090d16; border-radius:6px; border:1px solid var(--border);">
+        <div>接続状況:</div>
+        <div>PL1: <span id="host-status-pl1" style="color:var(--red);">未接続</span></div>
+        <div>PL2: <span id="host-status-pl2" style="color:var(--red);">未接続</span></div>
+        <div>PL3: <span id="host-status-pl3" style="color:var(--red);">未接続</span></div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button id="btnHostStart" class="btn-success" style="font-size:1rem; padding:8px 20px;" onclick="hostTriggerTutorial()">チュートリアル開始</button>
+        <span style="color:var(--text-muted); font-size:0.8rem;">※全員の接続完了後に開始してください</span>
+      </div>
     </div>
-    <div style="display:flex; gap:6px; align-items:center;">
-      <input type="text" id="targetPeerId" placeholder="PL1のIDを貼り付け">
-      <button class="action-btn" onclick="joinHost()">接続する</button>
+
+    <!-- 俯瞰監視パネル -->
+    <div class="panel">
+      <h4>各プレイヤーの画面状況（俯瞰モニタ）</h4>
+      <div class="host-grid">
+        <div class="host-col" id="monitor-pl1"><b>PL1モニター</b><div id="mon-body-pl1" style="margin-top:6px; color:var(--text-muted);">待機中</div></div>
+        <div class="host-col" id="monitor-pl2"><b>PL2モニター</b><div id="mon-body-pl2" style="margin-top:6px; color:var(--text-muted);">待機中</div></div>
+        <div class="host-col" id="monitor-pl3"><b>PL3モニター</b><div id="mon-body-pl3" style="margin-top:6px; color:var(--text-muted);">待機中</div></div>
+      </div>
     </div>
-    <div style="margin-left:auto; display:flex; align-items:center; gap:6px;">
-      <span><b>担当プレイヤー切替:</b></span>
-      <button class="role-btn active" id="btn-PL1" onclick="switchRole('PL1')">PL1 (ホスト)</button>
-      <button class="role-btn" id="btn-PL2" onclick="switchRole('PL2')">PL2</button>
-      <button class="role-btn" id="btn-PL3" onclick="switchRole('PL3')">PL3</button>
+
+    <!-- コンソールログ -->
+    <div class="panel">
+      <h4>操作・通信ログ</h4>
+      <div class="log-box" id="hostLogBox"></div>
     </div>
   </div>
 
-  <!-- PL2専用タブバー -->
-  <div class="pl2-bar-container" id="pl2BarContainer">
-    <div class="pl2-tab-group">
-      <span style="font-size:0.85rem; font-weight:bold; color:var(--yellow);">表示画面:</span>
-      <button class="tab-btn active" id="pl2TabBtn-module" onclick="switchPl2Tab('module')">🛠️ 作業画面</button>
-      <button class="tab-btn" id="pl2TabBtn-chat" onclick="switchPl2Tab('chat')">
-        💬 チャット画面 <span id="pl2ChatUnread" class="unread-badge">NEW</span>
-      </button>
-      <button class="tab-btn" id="pl2TabBtn-memo" onclick="switchPl2Tab('memo')">📝 メモ画面</button>
-    </div>
-  </div>
-
-  <div class="main-grid" id="mainGrid">
-    <!-- PL2専用：メモ画面 -->
-    <div class="chat-section" id="pl2MemoSection" style="display:none; height:450px;">
-      <div class="chat-header">
-        <span style="font-weight:bold; font-size:0.95rem; color:var(--yellow);">📝 メモ画面</span>
-      </div>
-      <textarea id="pl2DedicatedTextarea" style="flex:1; width:100%; background:#090d16; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; font-size:0.95rem; line-height:1.6; resize:none;" placeholder="ここにメモを入力..." oninput="saveMemo('PL2', this.value)"></textarea>
-    </div>
-
-    <!-- チャットセクション -->
-    <div class="chat-section" id="chatSection">
-      <div class="chat-header">
-        <span style="font-weight:bold; font-size:0.9rem;">チャット</span>
-        <button class="refresh-btn" onclick="refreshChatLog()">
-          🔄 更新 <span id="chatUnreadCount" class="unread-badge">0</span>
-        </button>
-      </div>
-
-      <div class="rule-box" id="chatRuleBox">
-        ・1〜40文字まで送信可能<br>
-        ・<b>【🔄 更新】を押すと新しいメッセージを受信します</b><br>
-        <span id="lineRuleText">・最新の2行のみ表示されます</span>
-      </div>
-
-      <div class="chat-log limit-2lines" id="chatLog"></div>
-
-      <div class="chat-input-area">
-        <div class="input-row">
-          <input type="text" id="chatInput" class="chat-input" placeholder="メッセージ (1~40字)" maxlength="40" oninput="checkInput()">
-          <button id="sendBtn" class="send-btn" onclick="sendMessage()">送信</button>
-        </div>
-        <div class="char-counter"><span id="charCount">0</span>/40文字</div>
-      </div>
-
-      <!-- PL1, PL3専用メモ -->
-      <div class="memo-section" id="chatBottomMemoSection">
-        <div class="memo-header">
-          <span>📝 メモ帳</span>
-        </div>
-        <textarea id="chatMemoTextarea" class="memo-textarea" placeholder="気付いたことや番号をメモ..." oninput="saveCurrentRoleMemo(this.value)"></textarea>
-      </div>
-    </div>
-
-    <!-- モジュールセクション -->
-    <div class="modules-section" id="modulesSection">
-      <div class="otp-display-panel" id="otpPanel" style="display:none;"></div>
+  <!-- ========================================================================= -->
+  <!-- 画面2: PL共通 役職選択画面                                                -->
+  <!-- ========================================================================= -->
+  <div id="view-select" class="view-container">
+    <div class="panel" style="text-align:center; padding:40px 20px;">
+      <h2 style="color:var(--accent); margin-bottom:12px;">担当プレイヤーの選択</h2>
+      <p style="color:var(--text-muted); margin-bottom:24px;">指示された自分のプレイヤー番号を選択してください。</p>
       
-      <div class="pl3-info-banner" id="pl3Banner" style="display:none;">
-        <div><b>案内:</b> モジュールは1つ完了するごとに次が表示されます。</div>
-        <div>進捗: <span id="pl3ProgressText" style="color:var(--yellow); font-weight:bold;">1 / 3 表示中</span></div>
+      <div style="display:flex; justify-content:center; gap:16px; flex-wrap:wrap;">
+        <button id="sel-btn-PL1" class="btn-primary" style="padding:14px 28px; font-size:1.1rem;" onclick="selectMyRole('PL1')">PL1 として参加</button>
+        <button id="sel-btn-PL2" class="btn-primary" style="padding:14px 28px; font-size:1.1rem;" onclick="selectMyRole('PL2')">PL2 として参加</button>
+        <button id="sel-btn-PL3" class="btn-primary" style="padding:14px 28px; font-size:1.1rem;" onclick="selectMyRole('PL3')">PL3 として参加</button>
+      </div>
+      <div id="selectWaitMsg" style="margin-top:20px; color:var(--yellow); display:none;">ホストの開始合図を待っています...</div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 画面3: チュートリアル・準備確認画面                                       -->
+  <!-- ========================================================================= -->
+  <div id="view-tutorial" class="view-container">
+    <div class="panel" style="text-align:center; padding:40px 20px;">
+      <h2 style="color:var(--accent); margin-bottom:12px;">実験準備・確認</h2>
+      <div style="background:#090d16; padding:20px; border-radius:8px; border:1px solid var(--border); max-width:600px; margin:0 auto 24px auto; text-align:left; line-height:1.6; font-size:0.9rem;">
+        ・ゲームが始まるとタイマー（6分）が作動します。<br>
+        ・チャットのやり取りとモジュールの解除を行ってください。<br>
+        ・準備が整ったら以下の「確認完了」ボタンを押してください。<br>
+        <span style="color:var(--yellow);">※全員が確認ボタンを押すとゲーム本番が始まります。</span>
+      </div>
+      <button id="btnReadyConfirm" class="btn-success" style="padding:12px 32px; font-size:1.1rem;" onclick="confirmReady()">確認完了</button>
+      <div id="readyStatusMsg" style="margin-top:14px; color:var(--text-muted);">他のプレイヤーの確認を待っています...</div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 画面4: ゲームプレイ画面（PL1/PL2/PL3専用）                                -->
+  <!-- ========================================================================= -->
+  <div id="view-game" class="view-container" style="max-width:1100px;">
+    <!-- PL2専用タブ切り替えバー -->
+    <div class="pl2-bar-container" id="pl2BarContainer">
+      <div class="pl2-tab-group">
+        <span style="font-size:0.85rem; font-weight:bold; color:var(--yellow);">画面切替:</span>
+        <button class="tab-btn active" id="pl2TabBtn-module" onclick="switchPl2Tab('module')">🛠️ 作業画面</button>
+        <button class="tab-btn" id="pl2TabBtn-chat" onclick="switchPl2Tab('chat')">
+          💬 チャット画面 <span id="pl2ChatUnread" class="unread-badge">NEW</span>
+        </button>
+        <button class="tab-btn" id="pl2TabBtn-memo" onclick="switchPl2Tab('memo')">📝 メモ画面</button>
+      </div>
+    </div>
+
+    <div class="main-grid" id="gameMainGrid">
+      <!-- PL2専用メモ画面 -->
+      <div class="chat-section" id="pl2MemoSection" style="display:none; height:460px;">
+        <div class="chat-header"><b>📝 メモ画面</b></div>
+        <textarea id="pl2DedicatedTextarea" style="flex:1; width:100%; background:#090d16; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; font-size:0.95rem; line-height:1.6; resize:none;" placeholder="自由にメモを入力できます..." oninput="saveMemo('PL2', this.value)"></textarea>
       </div>
 
-      <div id="modulesContainer" style="display:flex; flex-direction:column; gap:12px;"></div>
+      <!-- チャット画面 -->
+      <div class="chat-section" id="chatSection">
+        <div class="chat-header">
+          <span style="font-weight:bold; font-size:0.9rem;">チャットターミナル</span>
+          <button class="refresh-btn" onclick="refreshChatLog()">🔄 更新 <span id="chatUnreadCount" class="unread-badge">0</span></button>
+        </div>
+        <div class="rule-box">
+          ・1〜40文字まで送信可能<br>
+          ・<b>【🔄 更新】を押すと新しいメッセージを受信します</b><br>
+          <span id="chatRuleLineText">・最新の2行のみ表示されます</span>
+        </div>
+        <div class="chat-log limit-2lines" id="chatLog"></div>
+        <div class="chat-input-area">
+          <div class="input-row">
+            <input type="text" id="chatInput" class="chat-input" placeholder="メッセージ (1~40字)" maxlength="40" oninput="checkInput()">
+            <button id="sendBtn" class="send-btn" onclick="sendMessage()">送信</button>
+          </div>
+          <div class="char-counter"><span id="charCount">0</span>/40文字</div>
+        </div>
+
+        <!-- PL1, PL3専用チャット下メモ欄 -->
+        <div class="memo-section" id="chatBottomMemoSection">
+          <div class="memo-header"><span>📝 メモ帳</span></div>
+          <textarea id="chatMemoTextarea" class="memo-textarea" placeholder="気付いたことをメモ..." oninput="saveCurrentRoleMemo(this.value)"></textarea>
+        </div>
+      </div>
+
+      <!-- モジュール表示画面 -->
+      <div class="modules-section" id="modulesSection">
+        <div class="otp-display-panel" id="otpPanel" style="display:none;"></div>
+        <div class="pl3-info-banner" id="pl3Banner" style="display:none;">
+          <div><b>案内:</b> モジュールは完了するごとに次が表示されます。</div>
+          <div>進捗: <span id="pl3ProgressText" style="color:var(--yellow); font-weight:bold;">1 / 3 表示中</span></div>
+        </div>
+        <div id="modulesContainer" style="display:flex; flex-direction:column; gap:12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 画面5: 終了・アンケート案内画面                                           -->
+  <!-- ========================================================================= -->
+  <div id="view-result" class="view-container">
+    <div class="panel" style="text-align:center; padding:40px 20px;">
+      <h2 id="resultTitle" style="color:var(--accent); margin-bottom:12px;">実験終了</h2>
+      <p id="resultDesc" style="color:var(--text-muted); margin-bottom:24px;">タスクが完了、または制限時間（6分）に達しました。</p>
+
+      <!-- 各PL向けアンケートボタン -->
+      <div id="plResultAction" style="margin-bottom:20px;">
+        <a id="surveyLink" href="https://docs.google.com/forms" target="_blank" rel="noopener noreferrer">
+          <button class="btn-success" style="padding:12px 28px; font-size:1.1rem;">アンケートに回答する (Google Forms)</button>
+        </a>
+      </div>
+
+      <!-- ホバー制御パネル（ホストのみ表示） -->
+      <div id="hostResultControls" style="display:none; border-top:1px solid var(--border); padding-top:20px; margin-top:20px;">
+        <h4 style="color:var(--yellow); margin-bottom:12px;">ホスト操作</h4>
+        <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
+          <button class="btn-warning" onclick="hostResetToSelect()">役職選択画面へ戻す</button>
+          <button class="btn-primary" onclick="hostRestartGame()">もう一度最初から開始</button>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
+    // --- グローバル状態 ---
+    let myRole = null; // 'HOST', 'PL1', 'PL2', 'PL3'
+    let hostPeerId = null;
+    let peer = null;
+    let connections = []; // ホスト保持用
+    let hostConn = null;  // クライアント保持用
+    let isGameRunning = false;
+
+    // プレイヤー接続状態
+    let connectedPlayers = { PL1: false, PL2: false, PL3: false };
+    let readyPlayers = { PL1: false, PL2: false, PL3: false };
+
+    // --- ゲームパズル定義 ---
     const colors = [
       { name: "青", hex: "#38bdf8" }, { name: "黄", hex: "#eab308" },
       { name: "紫", hex: "#c084fc" }, { name: "赤", hex: "#f43f5e" }
     ];
     const symbols = ["▲", "★", "◆", "●"];
-
     const matrixA = {
       "▲": { "青": { sym: "▼", col: "赤", hex: "#f43f5e" }, "黄": { sym: "■", col: "紫", hex: "#c084fc" }, "紫": { sym: "◎", col: "青", hex: "#38bdf8" }, "赤": { sym: "◆", col: "黄", hex: "#eab308" } },
       "★": { "青": { sym: "◎", col: "黄", hex: "#eab308" }, "黄": { sym: "▼", col: "青", hex: "#38bdf8" }, "紫": { sym: "■", col: "赤", hex: "#f43f5e" }, "赤": { sym: "●", col: "紫", hex: "#c084fc" } },
@@ -350,10 +290,9 @@
       "●": { "青": { sym: "■", col: "赤", hex: "#f43f5e" }, "黄": { sym: "◆", col: "青", hex: "#38bdf8" }, "紫": { sym: "●", col: "黄", hex: "#eab308" }, "赤": { sym: "▼", col: "紫", hex: "#c084fc" } }
     };
 
-    let bTargetPasscode = Math.floor(100 + Math.random() * 900).toString();
-
-    const allNums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => Math.random() - 0.5);
-    const lineCButtonsByRole = {
+    let bTargetPasscode = "729";
+    let allNums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => Math.random() - 0.5);
+    let lineCButtonsByRole = {
       PL1: allNums.slice(0, 4).sort((a,b) => a - b),
       PL2: allNums.slice(4, 8).sort((a,b) => a - b),
       PL3: allNums.slice(8, 12).sort((a,b) => a - b)
@@ -373,9 +312,9 @@
         type: "numeric_pass", name: "ラインB", tagClass: "pipe-B",
         step1: { rawCode: "82" },
         step2: {
-          convert: (inputVal, sec10) => {
-            if (inputVal !== "82") return { success: false, key: null, msg: "入力された数字が違います" };
-            if (sec10 !== 4) return { success: false, key: null, msg: "今は変換できません (タイミングを確認してください)" };
+          convert: (val, sec10) => {
+            if (val !== "82") return { success: false, msg: "入力された数字が違います" };
+            if (sec10 !== 4) return { success: false, msg: "今は変換できません (タイミングを確認してください)" };
             return { success: true, key: bTargetPasscode, msg: "パスワードが出力されました" };
           }
         },
@@ -388,25 +327,13 @@
     let pl2Unlocked = { "A-2": false, "B-3": false, "C-1": false };
     let otpRemainingSec = 30;
 
-    function generateRandomPass() { return Math.floor(100 + Math.random() * 900).toString(); }
-
-    function refreshOtpPasscodes() {
-      pl2Passcodes["A-2"] = generateRandomPass();
-      pl2Passcodes["B-3"] = generateRandomPass();
-      pl2Passcodes["C-1"] = generateRandomPass();
-      otpRemainingSec = 30;
-      if (currentRole === "PL1") renderOtpPanel();
-    }
-
     const roleAssignments = {
       PL1: [ { line: 'A', step: 1 }, { line: 'B', step: 2 }, { line: 'C', step: 3 } ],
       PL2: [ { line: 'A', step: 2 }, { line: 'B', step: 3 }, { line: 'C', step: 1 } ],
       PL3: [ { line: 'A', step: 3 }, { line: 'B', step: 1 }, { line: 'C', step: 2 } ]
     };
-
     let pl3ShuffledOrder = ["A", "B", "C"].sort(() => Math.random() - 0.5);
 
-    let currentRole = "PL1";
     let pl2ActiveTab = "module";
     let selectedInputs = { A: { sym: null, col: null } };
     let b2InputVal = "";
@@ -414,124 +341,366 @@
     let numpadInputB = "";
     let playerMemos = { PL1: "", PL2: "", PL3: "" };
 
-    const initialMsgs = [
-      { sender: "SYSTEM", text: "接続しました。担当モジュールを確認してください。" },
-      { sender: "SYSTEM", text: "ロック解除番号は30秒ごとに新しくなります。" }
-    ];
-    let masterMessages = [...initialMsgs];
-    let displayedByRole = { PL1: [...initialMsgs], PL2: [...initialMsgs], PL3: [...initialMsgs] };
+    let masterMessages = [];
+    let displayedMessages = [];
 
-    let totalSec = 275;
-    function updateTimer() {
-      totalSec--;
-      if (totalSec <= 0) totalSec = 300;
+    // --- 6分タイマー処理 ---
+    let totalSec = 360; // 6分 (360秒)
+    let timerInterval = null;
+
+    function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        if (!isGameRunning) return;
+        totalSec--;
+        if (totalSec <= 0) {
+          totalSec = 0;
+          endGame("TIME_UP");
+        }
+        updateTimerDisplay();
+
+        // 30秒OTPタイマー
+        otpRemainingSec--;
+        if (otpRemainingSec <= 0) {
+          refreshOtpPasscodes();
+        } else {
+          const t = document.getElementById('otpTimerText');
+          if (t) t.textContent = `${otpRemainingSec}秒`;
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const m = Math.floor(totalSec / 60);
       const s = totalSec % 60;
       const sec10 = Math.floor(s / 10);
       const sec1 = s % 10;
       document.getElementById('sec10').textContent = sec10;
       document.getElementById('sec1').textContent = sec1;
+    }
 
-      otpRemainingSec--;
-      if (otpRemainingSec <= 0) {
-        refreshOtpPasscodes();
+    function refreshOtpPasscodes() {
+      pl2Passcodes["A-2"] = Math.floor(100 + Math.random() * 900).toString();
+      pl2Passcodes["B-3"] = Math.floor(100 + Math.random() * 900).toString();
+      pl2Passcodes["C-1"] = Math.floor(100 + Math.random() * 900).toString();
+      otpRemainingSec = 30;
+      if (myRole === "PL1") renderOtpPanel();
+    }
+
+    // --- 画面遷移制御 ---
+    function setView(viewId) {
+      document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+      const target = document.getElementById(viewId);
+      if (target) target.classList.add('active');
+    }
+
+    // --- 初期化 / URL解析 ---
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const hostParam = params.get('host');
+
+      if (!hostParam) {
+        // ホストとして起動
+        myRole = 'HOST';
+        document.getElementById('roleIndicator').textContent = "役職: ホスト管理者";
+        document.getElementById('roleIndicator').style.color = "var(--accent)";
+        setView('view-host');
+        initHostPeer();
       } else {
-        const timerEl = document.getElementById('otpTimerText');
-        if (timerEl) timerEl.textContent = `${otpRemainingSec}秒`;
+        // 参加者（PL）として起動
+        hostPeerId = hostParam;
+        setView('view-select');
+      }
+    });
+
+    // --- PeerJS: ホスト側初期化 ---
+    function initHostPeer() {
+      peer = new Peer();
+      peer.on('open', id => {
+        hostLog(`ホスト接続確立。ID: ${id}`);
+        const currentUrl = window.location.origin + window.location.pathname;
+        const shareUrl = `${currentUrl}?host=${id}`;
+        document.getElementById('shareUrlInput').value = shareUrl;
+      });
+
+      peer.on('connection', conn => {
+        connections.push(conn);
+        hostLog(`クライアント接続検知: ${conn.peer}`);
+
+        conn.on('data', data => {
+          handleDataAsHost(conn, data);
+        });
+
+        conn.on('close', () => {
+          connections = connections.filter(c => c !== conn);
+          hostLog(`クライアント切断: ${conn.peer}`);
+        });
+      });
+    }
+
+    function copyShareUrl() {
+      const input = document.getElementById('shareUrlInput');
+      input.select();
+      navigator.clipboard.writeText(input.value).then(() => alert("共有用URLをコピーしました！"));
+    }
+
+    function hostLog(msg) {
+      const box = document.getElementById('hostLogBox');
+      const time = new Date().toLocaleTimeString();
+      box.innerHTML += `<div>[${time}] ${msg}</div>`;
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // ホストのメッセージ中継処理
+    function handleDataAsHost(senderConn, data) {
+      hostLog(`受信 [${data.type}] from ${data.senderRole || 'Unknown'}`);
+
+      if (data.type === 'SELECT_ROLE') {
+        connectedPlayers[data.role] = true;
+        document.getElementById(`host-status-${data.role.toLowerCase()}`).textContent = "接続中";
+        document.getElementById(`host-status-${data.role.toLowerCase()}`).style.color = "var(--green)";
+        broadcastToClients({ type: 'ROLE_TAKEN', role: data.role });
+      } else if (data.type === 'CONFIRM_READY') {
+        readyPlayers[data.role] = true;
+        hostLog(`${data.role} がチュートリアル確認完了`);
+        if (readyPlayers.PL1 && readyPlayers.PL2 && readyPlayers.PL3) {
+          hostStartGame();
+        }
+      } else if (data.type === 'SOLVED') {
+        if (data.line === 'C') lineCSolved = true;
+        else pipelineData[data.line].step3.solved = true;
+        checkGameClear();
+        broadcastToClients(data);
+      } else if (data.type === 'CHAT') {
+        broadcastToClients(data);
+      } else if (data.type === 'SEQ_UPDATE' || data.type === 'SEQ_RESET') {
+        broadcastToClients(data);
       }
     }
-    setInterval(updateTimer, 1000);
 
-    function render() {
+    function broadcastToClients(data) {
+      connections.forEach(c => {
+        if (c.open) c.send(data);
+      });
+    }
+
+    // ホスト操作: チュートリアル画面へ全PLを遷移
+    function hostTriggerTutorial() {
+      if (!connectedPlayers.PL1 || !connectedPlayers.PL2 || !connectedPlayers.PL3) {
+        if (!confirm("まだ全てのプレイヤーが接続していません。開始しますか？")) return;
+      }
+      broadcastToClients({ type: 'GOTO_TUTORIAL' });
+      hostLog("チュートリアル画面を一斉表示しました");
+    }
+
+    // ゲーム本番開始
+    function hostStartGame() {
+      isGameRunning = true;
+      totalSec = 360;
+      startTimer();
+      bTargetPasscode = Math.floor(100 + Math.random() * 900).toString();
+      broadcastToClients({
+        type: 'START_GAME',
+        passcodes: pl2Passcodes,
+        lineCButtons: lineCButtonsByRole,
+        bPass: bTargetPasscode
+      });
+      hostLog("ゲーム本番を開始しました (制限時間6分)");
+    }
+
+    // クリア判定
+    function checkGameClear() {
+      let count = 0;
+      if (pipelineData.A.step3.solved) count++;
+      if (pipelineData.B.step3.solved) count++;
+      if (lineCSolved) count++;
+      document.getElementById('syncProgress').textContent = `${count} / 3 完了`;
+
+      if (count === 3) {
+        endGame("CLEAR");
+      }
+    }
+
+    // ゲーム終了処理
+    function endGame(reason) {
+      isGameRunning = false;
+      if (timerInterval) clearInterval(timerInterval);
+
+      if (myRole === 'HOST') {
+        broadcastToClients({ type: 'END_GAME', reason: reason });
+        document.getElementById('hostResultControls').style.display = 'block';
+      }
+
+      const title = document.getElementById('resultTitle');
+      const desc = document.getElementById('resultDesc');
+      if (reason === "CLEAR") {
+        title.textContent = "🎉 全ライン解除成功！";
+        title.style.color = "var(--green)";
+        desc.textContent = "おめでとうございます！全てのモジュールが解除されました。";
+      } else {
+        title.textContent = "⌛ 制限時間終了 (タイムアップ)";
+        title.style.color = "var(--red)";
+        desc.textContent = "6分の制限時間が経過しました。";
+      }
+      setView('view-result');
+    }
+
+    // ホスト制御: 役職選択へ戻す
+    function hostResetToSelect() {
+      connectedPlayers = { PL1: false, PL2: false, PL3: false };
+      readyPlayers = { PL1: false, PL2: false, PL3: false };
+      broadcastToClients({ type: 'RESET_TO_SELECT' });
+      setView('view-host');
+    }
+
+    // ホスト制御: もう一度最初から開始
+    function hostRestartGame() {
+      readyPlayers = { PL1: false, PL2: false, PL3: false };
+      pipelineData.A.step3.solved = false;
+      pipelineData.B.step3.solved = false;
+      lineCSolved = false;
+      currentTargetNumC = 1;
+      hostTriggerTutorial();
+    }
+
+    // --- 参加者 (PL1〜3) 側処理 ---
+    function selectMyRole(role) {
+      myRole = role;
+      document.getElementById('roleIndicator').textContent = `役職: ${role}`;
+      document.getElementById('roleIndicator').style.color = "var(--accent)";
+      document.querySelectorAll('#view-select button').forEach(b => b.disabled = true);
+      document.getElementById('selectWaitMsg').style.display = 'block';
+
+      // ホストへ接続
+      peer = new Peer();
+      peer.on('open', id => {
+        hostConn = peer.connect(hostPeerId);
+        hostConn.on('open', () => {
+          hostConn.send({ type: 'SELECT_ROLE', role: role });
+        });
+
+        hostConn.on('data', data => {
+          handleDataAsClient(data);
+        });
+      });
+    }
+
+    function handleDataAsClient(data) {
+      if (data.type === 'GOTO_TUTORIAL') {
+        setView('view-tutorial');
+      } else if (data.type === 'START_GAME') {
+        pl2Passcodes = data.passcodes;
+        lineCButtonsByRole = data.lineCButtons;
+        bTargetPasscode = data.bPass;
+        isGameRunning = true;
+        totalSec = 360;
+        startTimer();
+        initGameView();
+        setView('view-game');
+      } else if (data.type === 'CHAT') {
+        masterMessages.push(data.message);
+        updateUnreadBadges();
+      } else if (data.type === 'SOLVED') {
+        if (data.line === 'C') lineCSolved = true;
+        else pipelineData[data.line].step3.solved = true;
+        renderModules();
+        updateProgress();
+      } else if (data.type === 'SEQ_UPDATE') {
+        currentTargetNumC = data.nextTarget;
+        renderModules();
+      } else if (data.type === 'SEQ_RESET') {
+        currentTargetNumC = 1;
+        lineCButtonsByRole = data.buttons;
+        renderModules();
+      } else if (data.type === 'END_GAME') {
+        endGame(data.reason);
+      } else if (data.type === 'RESET_TO_SELECT') {
+        location.reload();
+      }
+    }
+
+    function confirmReady() {
+      document.getElementById('btnReadyConfirm').disabled = true;
+      document.getElementById('readyStatusMsg').textContent = "ホストの開始を待っています...";
+      if (hostConn) {
+        hostConn.send({ type: 'CONFIRM_READY', role: myRole });
+      }
+    }
+
+    // --- ゲーム画面構築 (PL専用) ---
+    function initGameView() {
       applyLayoutByRole();
       renderOtpPanel();
       renderModules();
       renderChatLog();
-      updateUnreadBadges();
-      updateProgress();
     }
 
     function applyLayoutByRole() {
-      const pl2BarContainer = document.getElementById('pl2BarContainer');
+      const pl2Bar = document.getElementById('pl2BarContainer');
       const chatSection = document.getElementById('chatSection');
       const modulesSection = document.getElementById('modulesSection');
-      const mainGrid = document.getElementById('mainGrid');
+      const mainGrid = document.getElementById('gameMainGrid');
       const chatLog = document.getElementById('chatLog');
-      const lineRuleText = document.getElementById('lineRuleText');
+      const chatRuleLineText = document.getElementById('chatRuleLineText');
       const pl3Banner = document.getElementById('pl3Banner');
       const chatBottomMemoSection = document.getElementById('chatBottomMemoSection');
-      const chatMemoTextarea = document.getElementById('chatMemoTextarea');
-      const pl2MemoSection = document.getElementById('pl2MemoSection');
-      const pl2DedicatedTextarea = document.getElementById('pl2DedicatedTextarea');
 
-      if (currentRole === "PL2") {
-        pl2BarContainer.style.display = "flex";
+      if (myRole === "PL2") {
+        pl2Bar.style.display = "flex";
         pl3Banner.style.display = "none";
         mainGrid.className = "single-view";
-        lineRuleText.innerHTML = "・全てのメッセージ履歴を確認できます";
-        chatLog.className = "chat-log unlimited-lines";
+        chatRuleLineText.innerHTML = "・全てのメッセージ履歴を確認できます";
+        chatLog.className = "chat-log unlimited";
         chatBottomMemoSection.style.display = "none";
 
-        if (pl2DedicatedTextarea) pl2DedicatedTextarea.value = playerMemos.PL2;
-
-        document.getElementById('pl2TabBtn-module').classList.toggle('active', pl2ActiveTab === 'module');
-        document.getElementById('pl2TabBtn-chat').classList.toggle('active', pl2ActiveTab === 'chat');
-        document.getElementById('pl2TabBtn-memo').classList.toggle('active', pl2ActiveTab === 'memo');
-
-        if (pl2ActiveTab === "module") {
-          modulesSection.style.display = "flex";
-          chatSection.style.display = "none";
-          pl2MemoSection.style.display = "none";
-        } else if (pl2ActiveTab === "chat") {
-          modulesSection.style.display = "none";
-          chatSection.style.display = "flex";
-          pl2MemoSection.style.display = "none";
-        } else if (pl2ActiveTab === "memo") {
-          modulesSection.style.display = "none";
-          chatSection.style.display = "none";
-          pl2MemoSection.style.display = "flex";
-        }
-      } else if (currentRole === "PL3") {
-        pl2BarContainer.style.display = "none";
-        pl2MemoSection.style.display = "none";
+        switchPl2Tab('module');
+      } else if (myRole === "PL3") {
+        pl2Bar.style.display = "none";
         pl3Banner.style.display = "flex";
         mainGrid.className = "main-grid";
         modulesSection.style.display = "flex";
         chatSection.style.display = "flex";
         chatBottomMemoSection.style.display = "flex";
-        lineRuleText.innerHTML = "・最新の2行のみ表示されます";
+        chatRuleLineText.innerHTML = "・最新の2行のみ表示されます";
         chatLog.className = "chat-log limit-2lines";
-
-        if (chatMemoTextarea) chatMemoTextarea.value = playerMemos[currentRole];
       } else {
-        pl2BarContainer.style.display = "none";
-        pl2MemoSection.style.display = "none";
+        // PL1
+        pl2Bar.style.display = "none";
         pl3Banner.style.display = "none";
         mainGrid.className = "main-grid";
         modulesSection.style.display = "flex";
         chatSection.style.display = "flex";
         chatBottomMemoSection.style.display = "flex";
-        lineRuleText.innerHTML = "・最新の2行のみ表示されます";
+        chatRuleLineText.innerHTML = "・最新の2行のみ表示されます";
         chatLog.className = "chat-log limit-2lines";
-
-        if (chatMemoTextarea) chatMemoTextarea.value = playerMemos[currentRole];
       }
     }
-
-    function saveMemo(role, val) { playerMemos[role] = val; }
-    function saveCurrentRoleMemo(val) { playerMemos[currentRole] = val; }
 
     function switchPl2Tab(tab) {
       pl2ActiveTab = tab;
+      const modulesSection = document.getElementById('modulesSection');
+      const chatSection = document.getElementById('chatSection');
+      const pl2MemoSection = document.getElementById('pl2MemoSection');
+
+      document.getElementById('pl2TabBtn-module').classList.toggle('active', tab === 'module');
+      document.getElementById('pl2TabBtn-chat').classList.toggle('active', tab === 'chat');
+      document.getElementById('pl2TabBtn-memo').classList.toggle('active', tab === 'memo');
+
       if (tab === 'chat') {
-        const badge = document.getElementById('pl2ChatUnread');
-        if (badge) badge.style.display = 'none';
+        document.getElementById('pl2ChatUnread').style.display = 'none';
       }
-      applyLayoutByRole();
+
+      modulesSection.style.display = (tab === 'module') ? "flex" : "none";
+      chatSection.style.display = (tab === 'chat') ? "flex" : "none";
+      pl2MemoSection.style.display = (tab === 'memo') ? "flex" : "none";
     }
+
+    function saveMemo(role, val) { playerMemos[role] = val; }
+    function saveCurrentRoleMemo(val) { playerMemos[myRole] = val; }
 
     function renderOtpPanel() {
       const panel = document.getElementById('otpPanel');
-      if (currentRole === "PL1") {
+      if (myRole === "PL1") {
         panel.style.display = "flex";
         let itemsHtml = "";
         for (const [modId, pass] of Object.entries(pl2Passcodes)) {
@@ -542,7 +711,6 @@
             </div>
           `;
         }
-
         panel.innerHTML = `
           <div class="otp-panel-header">
             <span>🔑 モジュール解除番号一覧:</span>
@@ -558,30 +726,21 @@
     function renderModules() {
       const container = document.getElementById('modulesContainer');
       container.innerHTML = "";
-      let myTasks = [...roleAssignments[currentRole]];
+      if (!myRole || myRole === 'HOST') return;
 
-      if (currentRole === "PL3") {
+      let myTasks = [...roleAssignments[myRole]];
+
+      if (myRole === "PL3") {
         let activeLine = null;
-        let solvedCountInOrder = 0;
-
+        let solvedCount = 0;
         for (const lineKey of pl3ShuffledOrder) {
           const isSolved = (lineKey === 'C' ? lineCSolved : pipelineData[lineKey].step3.solved);
-          if (isSolved) {
-            solvedCountInOrder++;
-          } else {
-            activeLine = lineKey;
-            break;
-          }
+          if (isSolved) solvedCount++;
+          else { activeLine = lineKey; break; }
         }
-
-        const progressEl = document.getElementById('pl3ProgressText');
-        if (progressEl) {
-          progressEl.textContent = `${Math.min(solvedCountInOrder + 1, 3)} / 3 ${activeLine ? '表示中' : '全完了'}`;
-        }
-
-        if (activeLine) {
-          myTasks = myTasks.filter(t => t.line === activeLine);
-        }
+        const pEl = document.getElementById('pl3ProgressText');
+        if (pEl) pEl.textContent = `${Math.min(solvedCount + 1, 3)} / 3 ${activeLine ? '表示中' : '全完了'}`;
+        if (activeLine) myTasks = myTasks.filter(t => t.line === activeLine);
       }
 
       myTasks.forEach(task => {
@@ -589,7 +748,7 @@
         const line = pipelineData[lineKey];
         const stepNum = task.step;
         const moduleId = `${lineKey}-${stepNum}`;
-        const isLocked = (currentRole === "PL2" && !pl2Unlocked[moduleId]);
+        const isLocked = (myRole === "PL2" && !pl2Unlocked[moduleId]);
         const isCompleted = (lineKey === 'C' ? lineCSolved : line.step3.solved);
 
         const card = document.createElement('div');
@@ -612,10 +771,7 @@
             ${headerHtml}
             <div class="lock-box">
               <div style="font-size:0.95rem; font-weight:bold; color:var(--yellow);">🔒 ロックされています</div>
-              <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">
-                解除用の番号を入力してください。<br>
-                番号は他の人の画面に表示されています。チャットで聞いてみましょう。
-              </div>
+              <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">解除番号を入力してください。</div>
               <div style="display:flex; gap:6px;">
                 <input type="text" id="pass-input-${moduleId}" maxlength="3" placeholder="番号(3桁)">
                 <button class="unlock-btn" onclick="tryUnlock('${moduleId}')">解除</button>
@@ -630,63 +786,39 @@
         let stepContent = "";
 
         if (lineKey === 'C') {
-          const myButtons = lineCButtonsByRole[currentRole];
+          const myButtons = lineCButtonsByRole[myRole] || [];
           const buttonsHtml = myButtons.map(num => {
             const isPressed = (num < currentTargetNumC);
             return `
-              <button class="seq-btn ${isPressed ? 'pressed' : ''}" 
-                      onclick="pressSeqBtn(${num})" 
-                      ${isPressed || lineCSolved ? 'disabled' : ''}>
+              <button class="seq-btn ${isPressed ? 'pressed' : ''}" onclick="pressSeqBtn(${num})" ${isPressed || lineCSolved ? 'disabled' : ''}>
                 ${num}
               </button>
             `;
           }).join('');
 
           stepContent = `
-            <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:6px;">
-              全員で協力して <b>1 から 12 まで順番に</b> ボタンを押してください。
-            </div>
             <div class="seq-box">
               <div class="seq-target-bar">
-                <span style="font-weight:bold; color:var(--purple);">${lineCSolved ? '✅ 全ての番号の入力が完了しました！' : ''}</span>
-                <span id="seqMsg-${currentRole}" style="font-size:0.8rem; color:var(--text-muted);">
-                  ${lineCSolved ? '解除完了' : ''}
-                </span>
+                <span style="font-weight:bold; color:var(--purple);">${lineCSolved ? '✅ 解除完了' : ''}</span>
               </div>
-              <div style="font-size:0.8rem; color:var(--text-muted);">あなたの手元にあるボタン:</div>
-              <div class="seq-buttons-grid">
-                ${buttonsHtml}
-              </div>
+              <div style="font-size:0.8rem; color:var(--text-muted);">手元のボタン:</div>
+              <div class="seq-buttons-grid">${buttonsHtml}</div>
             </div>
           `;
         } else if (line.type === "numeric_pass") {
           if (stepNum === 1) {
             stepContent = `
-              <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:6px;">
-                枠の上にマウスを乗せると数字が見えます。チャットで伝えてください。
-              </div>
               <div class="step1-box">
                 <div class="hover-sensor">
                   <span class="sensor-placeholder" style="color:var(--text-muted); font-size:0.75rem;">[ 乗せる ]</span>
-                  <div class="sensor-secret">
-                    <div class="secret-num">${line.step1.rawCode}</div>
-                  </div>
+                  <div class="sensor-secret"><div class="secret-num">${line.step1.rawCode}</div></div>
                 </div>
-                <div style="font-size:0.85rem;">
-                  表示される数字: <b>${moduleId}</b><br>
-                  <span style="color:var(--yellow); font-size:0.8rem;">※見えた数字をチャットで伝えましょう</span>
-                </div>
+                <div style="font-size:0.85rem;">表示された数字: <b>${moduleId}</b></div>
               </div>
             `;
           } else if (stepNum === 2) {
             stepContent = `
-              <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:6px;">
-                教えてもらった数字を入力してボタンを押すと、パスワードが手に入ります。
-              </div>
               <div class="converter-box">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-weight:bold; font-size:0.85rem; color:var(--yellow);">数字の入力:</span>
-                </div>
                 <div class="converter-input-row">
                   <input type="text" id="b2Input" class="converter-input" placeholder="数字" maxlength="4" value="${b2InputVal}">
                   <button class="convert-btn" onclick="executeB2Convert()">パスワードを出す</button>
@@ -695,22 +827,16 @@
                   <span style="font-size:0.85rem; color:var(--text-muted);">出たパスワード:</span>
                   <div class="key-result-badge" id="b2ResultBadge">${b2GeneratedKey || "---"}</div>
                 </div>
-                <div id="b2Msg" style="font-size:0.75rem; color:${b2GeneratedKey ? 'var(--green)' : 'var(--text-muted)'};">
-                  ${b2GeneratedKey ? '※出たパスワードをチャットで伝えましょう' : '数字を入力してボタンを押してください'}
-                </div>
+                <div id="b2Msg" style="font-size:0.75rem; color:${b2GeneratedKey ? 'var(--green)' : 'var(--text-muted)'};"></div>
               </div>
             `;
           } else if (stepNum === 3) {
             stepContent = `
               <div class="b3-rule-banner">
-                <b>💡 ヒント:</b><br>
-                B-2でパスワードを出すボタンは、<b>タイマーの十の位が「4」のとき（例: 04:40〜04:49）</b>にしか動きません。<br>
-                B-2を操作している人に「十の位が4のときに押して！」と教えてあげましょう。
+                <b>💡 注記:</b><br>
+                B-2でパスワードを出すボタンは、<b>タイマーの十の位が「4」のとき（例: 04:40〜04:49）</b>にしか動作しません。
               </div>
-              <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:6px;">
-                教えてもらったパスワードをテンキーで入力してください。
-              </div>
-              <div class="step3-box" style="flex-direction:row; align-items:flex-start; gap:20px; flex-wrap:wrap;">
+              <div class="step3-box" style="flex-direction:row; align-items:flex-start; gap:16px;">
                 <div class="numpad-container">
                   <div class="numpad-display" id="numpadDisplay">${numpadInputB || "---"}</div>
                   <div class="numpad-grid">
@@ -720,11 +846,9 @@
                     <button class="numpad-btn" style="color:var(--yellow);" onclick="backspaceNumpad()" ${line.step3.solved ? 'disabled' : ''}>⌫</button>
                   </div>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                  <button class="exec-btn" onclick="submitNumericPipeline('B')" ${line.step3.solved ? 'disabled' : ''}>
-                    ${line.step3.solved ? '解除済み' : '決定'}
-                  </button>
-                  <span id="result-B" style="font-size:0.85rem;"></span>
+                <div>
+                  <button class="exec-btn" onclick="submitNumericPipeline('B')" ${line.step3.solved ? 'disabled' : ''}>決定</button>
+                  <div id="result-B" style="font-size:0.85rem; margin-top:4px;"></div>
                 </div>
               </div>
             `;
@@ -732,9 +856,6 @@
         } else {
           if (stepNum === 1) {
             stepContent = `
-              <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:6px;">
-                枠の上にマウスを乗せると記号と色が見えます。チャットで伝えてください。
-              </div>
               <div class="step1-box">
                 <div class="hover-sensor">
                   <span class="sensor-placeholder" style="color:var(--text-muted); font-size:0.75rem;">[ 乗せる ]</span>
@@ -743,10 +864,7 @@
                     <div class="secret-color" style="color:${line.step1.hex};">${line.step1.colorName}</div>
                   </div>
                 </div>
-                <div style="font-size:0.85rem;">
-                  隠れている記号: <b>${moduleId}</b><br>
-                  <span style="color:var(--yellow); font-size:0.8rem;">※「形」と「色」の両方をチャットで伝えましょう</span>
-                </div>
+                <div style="font-size:0.85rem;">隠れている記号: <b>${moduleId}</b></div>
               </div>
             `;
           } else if (stepNum === 2) {
@@ -755,74 +873,39 @@
             let tableRows = symbols.map(s => {
               let cells = colors.map(c => {
                 const res = mData[s][c.name];
-                return `
-                  <td>
-                    <div class="cell-val">
-                      <span class="cell-sym" style="color:${res.hex};">${res.sym}</span>
-                      <span class="cell-col" style="color:${res.hex};">${res.col}</span>
-                    </div>
-                  </td>
-                `;
+                return `<td><span style="color:${res.hex}; font-weight:bold;">${res.sym}</span><br><span style="color:${res.hex}; font-size:0.7rem;">${res.col}</span></td>`;
               }).join('');
-              return `<tr><th class="row-header">${s}</th>${cells}</tr>`;
+              return `<tr><th>${s}</th>${cells}</tr>`;
             }).join('');
 
             stepContent = `
-              <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:6px;">
-                聞いた【記号】と【色】が交わるマスを見て、そこに書かれている記号と色を伝えてください。
-              </div>
               <div class="step2-box">
-                <div style="font-weight:bold; font-size:0.8rem; color:var(--accent);">【変換の対応表】</div>
-                <div class="matrix-container">
-                  <table class="matrix-table">
-                    <thead>
-                      <tr><th class="corner-header">記号＼色</th>${tableHeaders}</tr>
-                    </thead>
-                    <tbody>${tableRows}</tbody>
-                  </table>
-                </div>
+                <div style="font-weight:bold; font-size:0.8rem; color:var(--accent);">【対応表】</div>
+                <table class="matrix-table">
+                  <thead><tr><th>記号＼色</th>${tableHeaders}</tr></thead>
+                  <tbody>${tableRows}</tbody>
+                </table>
               </div>
             `;
           } else if (stepNum === 3) {
             const curSym = selectedInputs[lineKey].sym;
             const curCol = selectedInputs[lineKey].col;
-
             stepContent = `
-              <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:6px;">
-                教えてもらった【記号】と【色】を選んで決定を押してください。
-              </div>
               <div class="step3-box">
-                <div class="selection-group">
-                  <div class="selection-label">① 記号を選ぶ:</div>
-                  <div class="selector-row">
-                    ${line.step3.optionsSym.map(s => `
-                      <button class="sym-btn \${curSym === s ? 'selected' : ''}" 
-                              onclick="selectSym('${lineKey}', '${s}')" 
-                              \${line.step3.solved ? 'disabled' : ''}>
-                        \${s}
-                      </button>
-                    `).join('')}
-                  </div>
-                </div>
-
-                <div class="selection-group">
-                  <div class="selection-label">② 色を選ぶ:</div>
-                  <div class="selector-row">
-                    ${line.step3.optionsCol.map(c => `
-                      <button class="color-btn \${curCol === c.name ? 'selected' : ''}" 
-                              style="color:${c.hex}; border-color:${c.hex};"
-                              onclick="selectCol('${lineKey}', '${c.name}')" 
-                              \${line.step3.solved ? 'disabled' : ''}>
-                        \${c.name}
-                      </button>
-                    `).join('')}
-                  </div>
-                </div>
-
                 <div>
-                  <button class="exec-btn" onclick="submitSymbolPipeline('${lineKey}')" ${line.step3.solved ? 'disabled' : ''}>
-                    ${line.step3.solved ? '解除済み' : '決定'}
-                  </button>
+                  <span style="font-size:0.75rem; color:var(--text-muted);">記号:</span>
+                  <div style="display:flex; gap:6px; margin-top:2px;">
+                    ${line.step3.optionsSym.map(s => `<button class="sym-btn \${curSym === s ? 'selected' : ''}" onclick="selectSym('${lineKey}', '${s}')" ${line.step3.solved ? 'disabled' : ''}>${s}</button>`).join('')}
+                  </div>
+                </div>
+                <div>
+                  <span style="font-size:0.75rem; color:var(--text-muted);">色:</span>
+                  <div style="display:flex; gap:6px; margin-top:2px;">
+                    ${line.step3.optionsCol.map(c => `<button class="color-btn \${curCol === c.name ? 'selected' : ''}" style="color:${c.hex}; border-color:${c.hex};" onclick="selectCol('${lineKey}', '${c.name}')" ${line.step3.solved ? 'disabled' : ''}>${c.name}</button>`).join('')}
+                  </div>
+                </div>
+                <div>
+                  <button class="exec-btn" onclick="submitSymbolPipeline('${lineKey}')" ${line.step3.solved ? 'disabled' : ''}>決定</button>
                   <span id="result-${lineKey}" style="font-size:0.85rem; margin-left:8px;"></span>
                 </div>
               </div>
@@ -835,46 +918,13 @@
       });
     }
 
-    function shuffleLineCButtons() {
-      const shuffled = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => Math.random() - 0.5);
-      lineCButtonsByRole.PL1 = shuffled.slice(0, 4).sort((a,b) => a - b);
-      lineCButtonsByRole.PL2 = shuffled.slice(4, 8).sort((a,b) => a - b);
-      lineCButtonsByRole.PL3 = shuffled.slice(8, 12).sort((a,b) => a - b);
-    }
-
-    function pressSeqBtn(num) {
-      if (lineCSolved) return;
-
-      if (num === currentTargetNumC) {
-        currentTargetNumC++;
-        broadcast({ type: 'SEQ_UPDATE', nextTarget: currentTargetNumC });
-
-        if (currentTargetNumC > 12) {
-          lineCSolved = true;
-          broadcast({ type: 'SOLVED', line: 'C' });
-        }
-        render();
-      } else {
-        currentTargetNumC = 1;
-        shuffleLineCButtons();
-        broadcast({ type: 'SEQ_RESET', buttons: lineCButtonsByRole });
-        render();
-
-        const msgEl = document.getElementById(`seqMsg-${currentRole}`);
-        if (msgEl) {
-          msgEl.innerHTML = `<span style="color:var(--red); font-weight:bold;">⚠️ 違う数字を押したためリセット！再シャッフルされ、1からやり直しです</span>`;
-        }
-      }
-    }
-
+    // --- 各種操作ハンドラ ---
     function tryUnlock(moduleId) {
       const input = document.getElementById(`pass-input-${moduleId}`);
       const err = document.getElementById(`unlock-err-${moduleId}`);
-      const val = input.value.trim();
-
-      if (val === pl2Passcodes[moduleId]) {
+      if (input.value.trim() === pl2Passcodes[moduleId]) {
         pl2Unlocked[moduleId] = true;
-        render();
+        renderModules();
       } else {
         err.textContent = "番号が違うか、期限切れです";
       }
@@ -882,20 +932,18 @@
 
     function executeB2Convert() {
       const input = document.getElementById('b2Input');
-      const val = input ? input.value.trim() : "";
-      b2InputVal = val;
+      b2InputVal = input ? input.value.trim() : "";
       const sec10 = parseInt(document.getElementById('sec10').textContent, 10);
-      const res = pipelineData.B.step2.convert(val, sec10);
+      const res = pipelineData.B.step2.convert(b2InputVal, sec10);
 
       const badge = document.getElementById('b2ResultBadge');
       const msg = document.getElementById('b2Msg');
-
       if (res.success) {
         b2GeneratedKey = res.key;
         badge.textContent = res.key;
         badge.style.color = "var(--green)";
         badge.style.borderColor = "var(--green)";
-        msg.textContent = `※パスワード [${res.key}] が出ました。チャットで伝えましょう。`;
+        msg.textContent = "パスワードが出力されました";
         msg.style.color = "var(--green)";
       } else {
         b2GeneratedKey = null;
@@ -919,14 +967,13 @@
         resSpan.innerHTML = "<span style='color:var(--red);'>記号と色の両方を選んでください</span>";
         return;
       }
-
       if (cur.sym === line.step3.targetSym && cur.col === line.step3.targetCol) {
         line.step3.solved = true;
-        resSpan.innerHTML = "<span style='color:var(--green);'>正解！解除しました</span>";
-        broadcast({ type: 'SOLVED', line: lineKey });
-        render();
+        resSpan.innerHTML = "<span style='color:var(--green);'>解除完了</span>";
+        sendDataToHost({ type: 'SOLVED', line: lineKey });
+        renderModules();
       } else {
-        resSpan.innerHTML = "<span style='color:var(--red);'>違います (記号か色が合っていません)</span>";
+        resSpan.innerHTML = "<span style='color:var(--red);'>違います</span>";
       }
     }
 
@@ -940,30 +987,102 @@
     function backspaceNumpad() { numpadInputB = numpadInputB.slice(0, -1); document.getElementById('numpadDisplay').textContent = numpadInputB || "---"; }
 
     function submitNumericPipeline(lineKey) {
-      const line = pipelineData[lineKey];
       const resSpan = document.getElementById(`result-${lineKey}`);
-
       if (numpadInputB.length !== 3) {
-        resSpan.innerHTML = "<span style='color:var(--red);'>3桁の数字を入力してください</span>";
+        resSpan.innerHTML = "<span style='color:var(--red);'>3桁入力してください</span>";
         return;
       }
-
       if (numpadInputB === bTargetPasscode) {
-        line.step3.solved = true;
-        resSpan.innerHTML = "<span style='color:var(--green);'>正解！解除しました</span>";
-        broadcast({ type: 'SOLVED', line: lineKey });
-        render();
+        pipelineData[lineKey].step3.solved = true;
+        resSpan.innerHTML = "<span style='color:var(--green);'>解除完了</span>";
+        sendDataToHost({ type: 'SOLVED', line: lineKey });
+        renderModules();
       } else {
-        resSpan.innerHTML = `<span style='color:var(--red);'>違います (番号が合っていません)</span>`;
+        resSpan.innerHTML = "<span style='color:var(--red);'>番号が違います</span>";
       }
     }
 
-    function switchRole(role) {
-      currentRole = role;
-      document.querySelectorAll('.role-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.id === `btn-${role}`);
+    function pressSeqBtn(num) {
+      if (lineCSolved) return;
+      if (num === currentTargetNumC) {
+        currentTargetNumC++;
+        sendDataToHost({ type: 'SEQ_UPDATE', nextTarget: currentTargetNumC });
+        if (currentTargetNumC > 12) {
+          lineCSolved = true;
+          sendDataToHost({ type: 'SOLVED', line: 'C' });
+        }
+        renderModules();
+      } else {
+        // ミス時シャッフル
+        currentTargetNumC = 1;
+        const shuffled = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => Math.random() - 0.5);
+        lineCButtonsByRole.PL1 = shuffled.slice(0, 4).sort((a,b) => a - b);
+        lineCButtonsByRole.PL2 = shuffled.slice(4, 8).sort((a,b) => a - b);
+        lineCButtonsByRole.PL3 = shuffled.slice(8, 12).sort((a,b) => a - b);
+        sendDataToHost({ type: 'SEQ_RESET', buttons: lineCButtonsByRole });
+        renderModules();
+      }
+    }
+
+    // チャット処理
+    function checkInput() {
+      const input = document.getElementById('chatInput');
+      const sendBtn = document.getElementById('sendBtn');
+      const counter = document.getElementById('charCount');
+      counter.textContent = input.value.length;
+      sendBtn.disabled = (input.value.length === 0 || input.value.length > 40);
+    }
+
+    function renderChatLog() {
+      const log = document.getElementById('chatLog');
+      log.innerHTML = "";
+      let msgsToShow = [...displayedMessages];
+      if (myRole !== "PL2") msgsToShow = msgsToShow.slice(-2);
+
+      msgsToShow.forEach(m => {
+        const div = document.createElement('div');
+        div.className = `chat-msg ${m.sender === myRole ? 'mine' : ''}`;
+        div.textContent = `${m.sender}: ${m.text}`;
+        log.appendChild(div);
       });
-      render();
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function updateUnreadBadges() {
+      const unreadCount = masterMessages.length - displayedMessages.length;
+      const b = document.getElementById('chatUnreadCount');
+      if (unreadCount > 0) {
+        b.style.display = "inline";
+        b.textContent = `+${unreadCount}`;
+        const pl2B = document.getElementById('pl2ChatUnread');
+        if (pl2B) pl2B.style.display = "inline";
+      } else {
+        b.style.display = "none";
+        const pl2B = document.getElementById('pl2ChatUnread');
+        if (pl2B) pl2B.style.display = "none";
+      }
+    }
+
+    function refreshChatLog() {
+      displayedMessages = [...masterMessages];
+      renderChatLog();
+      updateUnreadBadges();
+    }
+
+    function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text || text.length > 40) return;
+
+      const msgObj = { sender: myRole, text: text };
+      masterMessages.push(msgObj);
+      displayedMessages.push(msgObj);
+
+      sendDataToHost({ type: 'CHAT', message: msgObj });
+      input.value = "";
+      checkInput();
+      renderChatLog();
+      updateUnreadBadges();
     }
 
     function updateProgress() {
@@ -974,167 +1093,14 @@
       document.getElementById('syncProgress').textContent = `${count} / 3 完了`;
     }
 
-    function checkInput() {
-      const input = document.getElementById('chatInput');
-      const sendBtn = document.getElementById('sendBtn');
-      const counter = document.getElementById('charCount');
-      const val = input.value;
-
-      counter.textContent = val.length;
-      const isOver = val.length > 40 || val.length === 0;
-
-      input.classList.toggle('error', val.length > 40);
-      sendBtn.disabled = isOver;
-    }
-
-    function renderChatLog() {
-      const log = document.getElementById('chatLog');
-      log.innerHTML = "";
-
-      let myDisplayList = displayedByRole[currentRole] || [];
-      let msgsToShow = [...myDisplayList];
-
-      if (currentRole !== "PL2") msgsToShow = msgsToShow.slice(-2);
-
-      msgsToShow.forEach(m => {
-        const div = document.createElement('div');
-        div.className = `chat-msg ${m.sender === currentRole ? 'mine' : ''}`;
-        
-        const span = document.createElement('span');
-        span.className = 'sender';
-        span.textContent = m.sender + ":";
-        
-        div.appendChild(span);
-        div.appendChild(document.createTextNode(" " + m.text));
-        log.appendChild(div);
-      });
-
-      log.scrollTop = log.scrollHeight;
-    }
-
-    function updateUnreadBadges() {
-      const myDisplayList = displayedByRole[currentRole] || [];
-      const unreadCount = masterMessages.length - myDisplayList.length;
-
-      const badge = document.getElementById('chatUnreadCount');
-      if (unreadCount > 0) {
-        badge.style.display = "inline";
-        badge.textContent = `+${unreadCount}`;
-        const pl2Badge = document.getElementById('pl2ChatUnread');
-        if (pl2Badge) pl2Badge.style.display = "inline";
-      } else {
-        badge.style.display = "none";
-        const pl2Badge = document.getElementById('pl2ChatUnread');
-        if (pl2Badge) pl2Badge.style.display = "none";
+    function sendDataToHost(data) {
+      data.senderRole = myRole;
+      if (myRole === 'HOST') {
+        broadcastToClients(data);
+      } else if (hostConn && hostConn.open) {
+        hostConn.send(data);
       }
     }
-
-    function refreshChatLog() {
-      displayedByRole[currentRole] = [...masterMessages];
-      renderChatLog();
-      updateUnreadBadges();
-    }
-
-    function sendMessage() {
-      const input = document.getElementById('chatInput');
-      const text = input.value.trim();
-      if (!text || text.length > 40) return;
-
-      const msgObj = { sender: currentRole, text: text };
-      masterMessages.push(msgObj);
-      displayedByRole[currentRole].push(msgObj);
-
-      broadcast({ type: 'CHAT', message: msgObj });
-
-      input.value = "";
-      checkInput();
-      renderChatLog();
-      updateUnreadBadges();
-    }
-
-    // ==========================================
-    // PeerJS 3端末スター型メッシュ通信
-    // ==========================================
-    let peer = null;
-    let connections = []; // ホストまたは参加者が持つアクティブ接続一覧
-
-    function initPeer() {
-      peer = new Peer();
-      peer.on('open', id => {
-        document.getElementById('myPeerId').textContent = id;
-      });
-
-      peer.on('connection', conn => {
-        setupConn(conn);
-      });
-    }
-
-    function copyMyId() {
-      const id = document.getElementById('myPeerId').textContent;
-      if (!id || id.includes('...')) return;
-      navigator.clipboard.writeText(id).then(() => {
-        alert('接続IDをコピーしました！他のプレイヤーに共有してください。');
-      });
-    }
-
-    // PL2やPL3がホスト（PL1）に接続する処理
-    function joinHost() {
-      const hostId = document.getElementById('targetPeerId').value.trim();
-      if (!hostId || !peer) return;
-
-      const conn = peer.connect(hostId);
-      conn.on('open', () => {
-        setupConn(conn);
-        alert('ホストに接続成功しました！');
-      });
-    }
-
-    function setupConn(conn) {
-      connections.push(conn);
-
-      conn.on('data', data => {
-        // ホスト(PL1)なら他参加者全員へブロードキャスト転送（スター型中継）
-        if (currentRole === 'PL1') {
-          connections.forEach(c => {
-            if (c.peer !== conn.peer && c.open) {
-              c.send(data);
-            }
-          });
-        }
-
-        // 受信データごとの処理
-        if (data.type === 'CHAT') {
-          masterMessages.push(data.message);
-          updateUnreadBadges();
-        } else if (data.type === 'SOLVED') {
-          if (data.line === 'C') lineCSolved = true;
-          else pipelineData[data.line].step3.solved = true;
-          render();
-        } else if (data.type === 'SEQ_UPDATE') {
-          currentTargetNumC = data.nextTarget;
-          render();
-        } else if (data.type === 'SEQ_RESET') {
-          currentTargetNumC = 1;
-          lineCButtonsByRole.PL1 = data.buttons.PL1;
-          lineCButtonsByRole.PL2 = data.buttons.PL2;
-          lineCButtonsByRole.PL3 = data.buttons.PL3;
-          render();
-          const msgEl = document.getElementById(`seqMsg-${currentRole}`);
-          if (msgEl) {
-            msgEl.innerHTML = `<span style="color:var(--red); font-weight:bold;">⚠️ 違う数字が押されたためリセットされました！1からやり直しです</span>`;
-          }
-        }
-      });
-    }
-
-    function broadcast(data) {
-      connections.forEach(conn => {
-        if (conn.open) conn.send(data);
-      });
-    }
-
-    initPeer();
-    render();
   </script>
 </body>
 </html>
