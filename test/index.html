@@ -339,7 +339,7 @@
     </div>
   </div>
 
-  <!-- 画面2: PL共通 役職選択画面 -->
+  <!-- 画面2: 役職選択画面 -->
   <div id="view-select" class="view-container">
     <div class="panel" style="text-align:center; padding:40px 20px;">
       <h2 style="color:var(--accent); margin-bottom:12px;">担当プレイヤーの選択</h2>
@@ -467,6 +467,7 @@
   </div>
 
   <script>
+    // グローバル状態
     let myRole = null;
     let hostViewingRole = 'PL1';
     let hostPeerId = null;
@@ -474,6 +475,7 @@
     let connections = [];
     let hostConn = null;
     let isGameRunning = false;
+    let outboundQueue = []; // 開通前の送信キュー
 
     let roleTaken = { PL1: false, PL2: false, PL3: false };
     let readyPlayers = { PL1: false, PL2: false, PL3: false };
@@ -482,6 +484,24 @@
       PL1: { chatInput: "", memo: "", b2Input: "", b2Key: null },
       PL2: { activeTab: "module", chatInput: "", memo: "", numpad: "", unlocked: { "A-2": false, "B-3": false, "C-1": false } },
       PL3: { chatInput: "", memo: "", curSym: null, curCol: null }
+    };
+
+    // ★ STUN + 確実なNAT越え用TURNリレーサーバー設定
+    const rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        }
+      ]
     };
 
     const colors = [
@@ -641,15 +661,9 @@
       }
     });
 
+    // ホスト初期化（TURNサーバー付き）
     function initHostPeer() {
-      peer = new Peer({
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-          ]
-        }
-      });
+      peer = new Peer({ config: rtcConfig });
 
       peer.on('open', id => {
         hostLog(`ホスト起動完了。ID: ${id}`, 'info');
@@ -663,17 +677,19 @@
       });
 
       peer.on('connection', conn => {
-        connections.push(conn);
         hostLog(`参加者接続検知: ${conn.peer}`, 'info');
 
         conn.on('open', () => {
+          connections.push(conn);
           hostLog(`参加者とのデータチャンネル開通: ${conn.peer}`, 'info');
+          // 接続確立直後に現在の選択状態を即座に送信
           conn.send({ type: 'ROLE_TAKEN_SYNC', roleTaken: roleTaken });
         });
 
         conn.on('data', data => {
           handleDataAsHost(conn, data);
         });
+
         conn.on('close', () => {
           connections = connections.filter(c => c !== conn);
           hostLog(`参加者切断: ${conn.peer}`, 'warn');
@@ -712,7 +728,7 @@
       area.style.display = (area.style.display === 'none') ? 'block' : 'none';
     }
 
-    // ホスト側の受信・中継処理
+    // ホストの受信・ブロードキャスト（中継）処理
     function handleDataAsHost(senderConn, data) {
       if (data.type === 'SELECT_ROLE') {
         roleTaken[data.role] = true;
@@ -731,30 +747,30 @@
         else pipelineData[data.line].step3.solved = true;
         hostLog(`【解除成功】[${data.senderRole}] が [ライン${data.line}] の認証に成功し解除を完了しました！`, 'info');
         checkGameClear();
-        broadcastToClients(data); // 全PLへ解除状態を同期
+        broadcastToClients(data);
         renderModules();
       } else if (data.type === 'CHAT') {
         hostLog(`【チャット】[${data.message.sender}] "${data.message.text}"`, 'chat');
         masterMessages.push(data.message);
-        broadcastToClients(data); // 全PLへチャットを同期
+        broadcastToClients(data);
         renderChatLog();
       } else if (data.type === 'SEQ_UPDATE') {
         currentTargetNumC = data.nextTarget;
         hostLog(`【正しい入力】[ラインC] ${data.senderRole} が番号 [${data.pressedNum}] を押下 (次の目標番号: [${data.nextTarget}])`);
-        broadcastToClients(data); // 全PLへラインCの進捗を同期
+        broadcastToClients(data);
         renderModules();
       } else if (data.type === 'SEQ_RESET') {
         currentTargetNumC = 1;
         lineCButtonsByRole = data.buttons;
         hostLog(`【間違えた入力】[ラインC] ${data.senderRole} が誤って [${data.wrongNum}] を押下 (正解は [${data.expectedNum}]) ➜ リセット＆再シャッフル実行`, 'error');
-        broadcastToClients(data); // 全PLへリセット状態を同期
+        broadcastToClients(data);
         renderModules();
       } else if (data.type === 'LOG_ERROR') {
         hostLog(`【間違えた入力】[${data.senderRole}] ${data.detail}`, 'error');
       } else if (data.type === 'PL_UNLOCK_SUCCESS') {
         pl2Unlocked[data.moduleId] = true;
         hostLog(`【ロック解除】[${data.role}] がモジュール [${data.moduleId}] の画面ロック解除に成功`, 'info');
-        broadcastToClients(data); // 全PLへロック解除状態を同期
+        broadcastToClients(data);
         renderModules();
       } else if (data.type === 'PL_FULL_STATE_SYNC') {
         plClientStates[data.role] = data.state;
@@ -899,23 +915,21 @@
       hostTriggerTutorial();
     }
 
+    // PL側初期化（TURNサーバー付き ＋ 再試行キュー）
     function initClientPreConnection() {
-      peer = new Peer({
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-          ]
-        }
-      });
+      peer = new Peer({ config: rtcConfig });
 
       peer.on('open', id => {
         hostConn = peer.connect(hostPeerId, { reliable: true });
 
         hostConn.on('open', () => {
+          // キューに溜まっているデータを一括送信
+          while (outboundQueue.length > 0) {
+            hostConn.send(outboundQueue.shift());
+          }
           const waitMsg = document.getElementById('selectWaitMsg');
           if (waitMsg && waitMsg.style.display !== 'none') {
-            waitMsg.textContent = "ホストと接続しました。開始合図を待っています...";
+            waitMsg.textContent = "ホストと接続完了。開始合図を待っています...";
           }
         });
 
@@ -941,9 +955,7 @@
       document.querySelectorAll('#view-select button').forEach(b => b.disabled = true);
       document.getElementById('selectWaitMsg').style.display = 'block';
 
-      if (hostConn && hostConn.open) {
-        hostConn.send({ type: 'SELECT_ROLE', role: role });
-      }
+      sendDataToHost({ type: 'SELECT_ROLE', role: role });
     }
 
     function handleDataAsClient(data) {
@@ -1005,9 +1017,7 @@
     function confirmReady() {
       document.getElementById('btnReadyConfirm').disabled = true;
       document.getElementById('readyStatusMsg').textContent = "全員の確認を待っています...";
-      if (hostConn) {
-        hostConn.send({ type: 'CONFIRM_READY', role: myRole });
-      }
+      sendDataToHost({ type: 'CONFIRM_READY', role: myRole });
     }
 
     function initGameView() {
@@ -1091,20 +1101,18 @@
       if (!plClientStates[myRole]) plClientStates[myRole] = {};
       Object.assign(plClientStates[myRole], partialUpdate);
 
-      if (hostConn && hostConn.open) {
-        hostConn.send({
-          type: 'PL_FULL_STATE_SYNC',
-          role: myRole,
-          state: plClientStates[myRole]
-        });
-      }
+      sendDataToHost({
+        type: 'PL_FULL_STATE_SYNC',
+        role: myRole,
+        state: plClientStates[myRole]
+      });
     }
 
     function sendErrorLog(detail) {
       if (myRole === 'HOST') {
         hostLog(`【間違えた入力】[HOST試行] ${detail}`, 'error');
-      } else if (hostConn && hostConn.open) {
-        hostConn.send({ type: 'LOG_ERROR', senderRole: myRole, detail: detail });
+      } else {
+        sendDataToHost({ type: 'LOG_ERROR', senderRole: myRole, detail: detail });
       }
     }
 
@@ -1385,6 +1393,7 @@
       });
     }
 
+    // ロック解除処理
     function tryUnlock(btnEl, moduleId) {
       if (myRole === 'HOST') return;
       const box = btnEl.closest('.lock-box');
@@ -1397,9 +1406,7 @@
         pl2Unlocked[moduleId] = true;
         renderModules();
         syncMyStateToHost({ unlocked: pl2Unlocked });
-        if (hostConn && hostConn.open) {
-          hostConn.send({ type: 'PL_UNLOCK_SUCCESS', role: myRole, moduleId: moduleId });
-        }
+        sendDataToHost({ type: 'PL_UNLOCK_SUCCESS', role: myRole, moduleId: moduleId });
       } else {
         err.textContent = "番号が違うか、期限切れです";
         sendErrorLog(`モジュール ${moduleId} のロック解除失敗 (入力値: "${val}" / 正解PASS: "${expected}")`);
@@ -1614,6 +1621,7 @@
       document.getElementById('syncProgress').textContent = `${count} / 3 完了`;
     }
 
+    // 確実なデータ送信（未開通時はキューイング）
     function sendDataToHost(data) {
       data.senderRole = getActiveViewRole();
       if (myRole === 'HOST') {
@@ -1621,6 +1629,8 @@
         handleDataAsHost(null, data);
       } else if (hostConn && hostConn.open) {
         hostConn.send(data);
+      } else {
+        outboundQueue.push(data);
       }
     }
   </script>
