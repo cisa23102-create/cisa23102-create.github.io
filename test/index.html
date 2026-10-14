@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>協力通信ゲーム 実験システム</title>
+  <title>非同期コミュニケーション協力ゲーム α版</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     :root {
@@ -139,7 +139,7 @@
     }
     .pipeline-card.completed { border-color: var(--green); background: rgba(34, 197, 94, 0.05); }
 
-    /* ★今開いている部分・アクティブカードを光らせるエフェクト */
+    /* ★アクティブモジュール枠発光 */
     .active-focus-card {
       border-color: var(--yellow) !important;
       box-shadow: 0 0 16px rgba(234, 179, 8, 0.45) !important;
@@ -170,7 +170,7 @@
     /* ステップ要素 */
     .step1-box { display: flex; gap: 14px; align-items: center; }
     .hover-sensor {
-      width: 80px; height: 80px; background: #090d16; border: 2px dashed var(--border); border-radius: 8px;
+      min-width: 90px; height: 80px; padding: 0 8px; background: #090d16; border: 2px dashed var(--border); border-radius: 8px;
       display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;
     }
     .hover-sensor:hover { border-color: var(--accent); background: var(--accent-glow); }
@@ -179,7 +179,7 @@
     .hover-sensor:hover .sensor-placeholder { display: none; }
     .secret-symbol { font-size: 2rem; line-height: 1; }
     .secret-color { font-size: 0.75rem; font-weight: bold; margin-top: 4px; }
-    .secret-num { font-size: 1.6rem; font-family: monospace; font-weight: bold; color: var(--yellow); }
+    .secret-num { font-size: 1.25rem; font-family: monospace; font-weight: bold; color: var(--yellow); letter-spacing: 1px; }
 
     .step2-box { background: #090d16; padding: 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.85rem; }
     .matrix-container { overflow-x: auto; margin-top: 8px; }
@@ -195,10 +195,10 @@
     .converter-box {
       display: flex; flex-direction: column; gap: 8px; background: #090d16; padding: 12px; border-radius: 6px; border: 1px solid var(--yellow);
     }
-    .converter-input-row { display: flex; gap: 8px; align-items: center; }
+    .converter-input-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .converter-input {
       background: #1e293b; border: 1px solid var(--border); color: var(--text); padding: 6px 10px;
-      font-size: 1.1rem; font-family: monospace; border-radius: 4px; width: 120px; text-align: center;
+      font-size: 1.1rem; font-family: monospace; border-radius: 4px; width: 140px; text-align: center;
     }
     .convert-btn { background: var(--yellow); color: #000; border: none; padding: 6px 14px; font-weight: bold; border-radius: 4px; cursor: pointer; }
     .key-result-badge {
@@ -275,7 +275,7 @@
 
     /* ホスト常駐型フローティングコンソール */
     #hostFloatingConsole {
-      position: fixed; bottom: 12px; right: 12px; width: 440px; z-index: 9999;
+      position: fixed; bottom: 12px; right: 12px; width: 450px; z-index: 9999;
       background: rgba(9, 13, 22, 0.94); border: 2px solid var(--accent); border-radius: 8px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: none;
     }
@@ -290,7 +290,7 @@
   <header>
     <div class="header-title" id="systemTitle">オンライン協調タスク実験システム</div>
     <div class="status-group">
-      <div>残り時間: <span class="timer-badge">06:<span id="sec10" class="timer-sec10">0</span><span id="sec1">0</span></span></div>
+      <div>残り時間: <span class="timer-badge"><span id="timerMin">06</span>:<span id="sec10" class="timer-sec10">0</span><span id="sec1">0</span></span></div>
       <div>進捗: <span id="syncProgress" style="font-weight:bold; color:var(--accent);">0 / 3 完了</span></div>
       <div id="roleIndicator" style="font-weight:bold; color:var(--yellow);">未確定</div>
       <!-- ホスト専用視点切替バー -->
@@ -484,7 +484,7 @@
     let plClientStates = {
       PL1: { chatInput: "", memo: "", b2Input: "", b2Key: null },
       PL2: { activeTab: "module", chatInput: "", memo: "", numpad: "", unlocked: { "A-2": false, "B-3": false, "C-1": false } },
-      PL3: { chatInput: "", memo: "", activeLine: null, curSym: null, curCol: null }
+      PL3: { chatInput: "", memo: "", curSym: null, curCol: null }
     };
 
     // パズルデータ
@@ -500,7 +500,12 @@
       "●": { "青": { sym: "■", col: "赤", hex: "#f43f5e" }, "黄": { sym: "◆", col: "青", hex: "#38bdf8" }, "紫": { sym: "●", col: "黄", hex: "#eab308" }, "赤": { sym: "▼", col: "紫", hex: "#c084fc" } }
     };
 
+    // モジュールB：紛らわしいシグナルコード候補リスト
+    const bSignalCandidates = ["8B-6G", "0D-8B", "9P-6Q", "5S-2Z", "B8-D0", "6G-9Q", "2Z-7T"];
+    let bCurrentSignal = "8B-6G";
+    let bParityTarget = "even"; // 'even' (偶数: 0,2,4) または 'odd' (奇数: 1,3,5)
     let bTargetPasscode = "729";
+
     const allNums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => Math.random() - 0.5);
     let lineCButtonsByRole = {
       PL1: allNums.slice(0, 4).sort((a,b) => a - b),
@@ -520,11 +525,16 @@
       },
       B: {
         type: "numeric_pass", name: "ラインB", tagClass: "pipe-B",
-        step1: { rawCode: "82" },
+        step1: { rawCode: bCurrentSignal },
         step2: {
           convert: (val, sec10) => {
-            if (val !== "82") return { success: false, reason: "数字不一致" };
-            if (sec10 !== 4) return { success: false, reason: "秒数位相不一致" };
+            const cleanVal = (val || "").trim().toUpperCase();
+            if (cleanVal !== bCurrentSignal) return { success: false, reason: "シグナルコード不一致" };
+            const isEven = (sec10 % 2 === 0);
+            const expectedEven = (bParityTarget === "even");
+            if (isEven !== expectedEven) {
+              return { success: false, reason: `秒数条件不一致 (十の位:${sec10}は${isEven ? '偶数' : '奇数'} / 期待:${expectedEven ? '偶数' : '奇数'})` };
+            }
             return { success: true, key: bTargetPasscode };
           }
         },
@@ -554,8 +564,8 @@
     let masterMessages = [];
     let displayedMessages = [];
 
-    // --- タイマー ---
-    let totalSec = 360;
+    // --- タイマー (分・秒が正しくカウントダウン) ---
+    let totalSec = 360; // 6分 (360秒)
     let timerInterval = null;
 
     function startTimer() {
@@ -579,10 +589,16 @@
       }, 1000);
     }
 
+    // 分数部・秒数部を完全連動表示
     function updateTimerDisplay() {
+      const m = Math.floor(totalSec / 60);
       const s = totalSec % 60;
       const sec10 = Math.floor(s / 10);
       const sec1 = s % 10;
+
+      const minEl = document.getElementById('timerMin');
+      if (minEl) minEl.textContent = String(m).padStart(2, '0');
+
       document.getElementById('sec10').textContent = sec10;
       document.getElementById('sec1').textContent = sec1;
 
@@ -785,13 +801,21 @@
       totalSec = 360;
       startTimer();
       bTargetPasscode = Math.floor(100 + Math.random() * 900).toString();
+      
+      // ランダムでシグナルコード＆奇数偶数条件を生成
+      bCurrentSignal = bSignalCandidates[Math.floor(Math.random() * bSignalCandidates.length)];
+      bParityTarget = (Math.random() < 0.5) ? "even" : "odd";
+      pipelineData.B.step1.rawCode = bCurrentSignal;
+
       broadcastToClients({
         type: 'START_GAME',
         passcodes: pl2Passcodes,
         lineCButtons: lineCButtonsByRole,
-        bPass: bTargetPasscode
+        bPass: bTargetPasscode,
+        bSignal: bCurrentSignal,
+        bParity: bParityTarget
       });
-      hostLog("全員の準備が完了しました。ゲーム本番開始（制限時間6分）", 'info');
+      hostLog(`全員の準備が完了。ゲーム本番開始 (制限時間6分 / モジュールB条件: 秒の十の位が${bParityTarget === 'even' ? '偶数' : '奇数'})`, 'info');
       document.getElementById('hostRoleSwitcher').style.display = 'flex';
       initGameView();
       setView('view-game');
@@ -906,6 +930,10 @@
         pl2Passcodes = data.passcodes;
         lineCButtonsByRole = data.lineCButtons;
         bTargetPasscode = data.bPass;
+        bCurrentSignal = data.bSignal;
+        bParityTarget = data.bParity;
+        pipelineData.B.step1.rawCode = bCurrentSignal;
+
         isGameRunning = true;
         totalSec = 360;
         startTimer();
@@ -1093,15 +1121,17 @@
 
       let myTasks = [...roleAssignments[activeRole]];
 
-      // ★ PL3の処理:
-      // PL3本人には1つずつ順次開示するが、
-      // ホスト視点で見ている場合は「3つともすべて表示」し、PL3本人が今開いているモジュール枠を黄色く光らせる！
+      // ★ PL3の開示対象判定ロジック修正
+      // PL3の開示順序（A, B, C）の中で、未クリアの最初のラインを特定する
       let pl3ActiveLine = null;
       let solvedCount = 0;
       for (const lineKey of pl3ShuffledOrder) {
         const isSolved = (lineKey === 'C' ? lineCSolved : pipelineData[lineKey].step3.solved);
-        if (isSolved) solvedCount++;
-        else if (!pl3ActiveLine) { pl3ActiveLine = lineKey; }
+        if (isSolved) {
+          solvedCount++;
+        } else if (!pl3ActiveLine) {
+          pl3ActiveLine = lineKey;
+        }
       }
 
       if (activeRole === "PL3") {
@@ -1109,9 +1139,9 @@
         const progStr = `${Math.min(solvedCount + 1, 3)} / 3 ${pl3ActiveLine ? '表示中' : '全完了'}`;
         if (pEl) pEl.textContent = progStr;
 
+        // PL3本人の画面では現在開示中の1モジュールのみに絞る
         if (myRole === "PL3" && pl3ActiveLine) {
           myTasks = myTasks.filter(t => t.line === pl3ActiveLine);
-          syncMyStateToHost({ activeLine: pl3ActiveLine });
         }
       }
 
@@ -1122,19 +1152,17 @@
         const moduleId = `${lineKey}-${stepNum}`;
         const isCompleted = (lineKey === 'C' ? lineCSolved : line.step3.solved);
 
-        // ロック判定:
-        // PL2本人にはロック中ならロック画面を出す。
-        // ホスト側では「モジュールの中身を最初から見せる」＋「PL2がロック解除したかどうか」のバッジを表示する。
         const isPl2LockedForPlayer = (activeRole === "PL2" && !pl2Unlocked[moduleId] && myRole !== 'HOST');
         const isPl2Module = (activeRole === "PL2");
 
-        // 発光判定:
-        // PL3のカードのうち、PL3本人が今開いているアクティブなカードを黄色く発光
+        // ★PL3の発光判定修正:
+        // PL3本人が現在表示中のモジュール（pl3ActiveLine）と完全一致するカードのみを発光させる
         const isPl3ActiveCard = (activeRole === "PL3" && lineKey === pl3ActiveLine && !isCompleted);
         const isActiveTask = !isCompleted && !isPl2LockedForPlayer;
 
         const card = document.createElement('div');
-        card.className = `pipeline-card ${isCompleted ? 'completed' : ''} ${(isPl3ActiveCard || (activeRole !== 'PL3' && isActiveTask)) ? 'active-focus-card' : ''}`;
+        const shouldGlow = (activeRole === "PL3") ? isPl3ActiveCard : isActiveTask;
+        card.className = `pipeline-card ${isCompleted ? 'completed' : ''} ${shouldGlow ? 'active-focus-card' : ''}`;
 
         // ヘッダー部
         let statusBadgeText = isCompleted ? '● 解除済み' : '○ 操作可能';
@@ -1165,7 +1193,6 @@
           </div>
         `;
 
-        // PL2本人の画面で未解除ならロック解除入力画面を表示
         if (isPl2LockedForPlayer) {
           card.innerHTML = `
             ${headerHtml}
@@ -1183,7 +1210,6 @@
           return;
         }
 
-        // ホスト、またはロック解除後のPL2、その他の通常モジュール内容を描画
         let stepContent = "";
 
         if (lineKey === 'C') {
@@ -1214,14 +1240,14 @@
                   <span class="sensor-placeholder" style="color:var(--text-muted); font-size:0.75rem;">[ 乗せる ]</span>
                   <div class="sensor-secret"><div class="secret-num">${line.step1.rawCode}</div></div>
                 </div>
-                <div style="font-size:0.85rem;">表示された数字: <b>${moduleId}</b></div>
+                <div style="font-size:0.85rem;">検出コード: <b>${moduleId}</b></div>
               </div>
             `;
           } else if (stepNum === 2) {
             stepContent = `
               <div class="converter-box">
                 <div class="converter-input-row">
-                  <input type="text" id="b2Input" class="converter-input" placeholder="数字" maxlength="4" value="${b2InputVal}" oninput="handleB2Input(this.value)">
+                  <input type="text" id="b2Input" class="converter-input" placeholder="コード入力" maxlength="6" value="${b2InputVal}" oninput="handleB2Input(this.value)">
                   <button class="convert-btn" onclick="executeB2Convert()">パスワードを出す</button>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
@@ -1232,16 +1258,17 @@
               </div>
             `;
           } else if (stepNum === 3) {
+            const parityText = (bParityTarget === "even") ? "偶数（0, 2, 4）" : "奇数（1, 3, 5）";
             stepContent = `
               <div class="b3-rule-banner">
                 <b>💡 注記:</b><br>
-                B-2でパスワードを出すボタンは、<b>タイマーの十の位が「4」のとき（例: 04:40〜04:49）</b>にしか動作しません。
+                B-2でパスワードを出すボタンは、<b>タイマー秒数の十の位が「${parityText}」の瞬間</b>にしか動作しません。
               </div>
               <div class="step3-box" style="flex-direction:row; align-items:flex-start; gap:16px;">
                 <div class="numpad-container">
                   <div class="numpad-display" id="numpadDisplay">${numpadInputB || "---"}</div>
                   <div class="numpad-grid">
-                    ${[1,2,3,4,5,6,7,8,9].map(n => `<button class="numpad-btn" onclick="pressNumpad('${n}')" ${line.step3.solved ? 'disabled' : ''}>${n}</button>`).join('')}
+                    ${[1,2,3,4,5,6,7,8,9].map(n => `<button class="numpad-btn" onclick="pressNumpad('\${n}')" ${line.step3.solved ? 'disabled' : ''}>${n}</button>`).join('')}
                     <button class="numpad-btn" style="color:var(--red);" onclick="clearNumpad()" ${line.step3.solved ? 'disabled' : ''}>C</button>
                     <button class="numpad-btn" onclick="pressNumpad('0')" ${line.step3.solved ? 'disabled' : ''}>0</button>
                     <button class="numpad-btn" style="color:var(--yellow);" onclick="backspaceNumpad()" ${line.step3.solved ? 'disabled' : ''}>⌫</button>
@@ -1276,14 +1303,14 @@
                 const res = mData[s][c.name];
                 return `<td><span style="color:${res.hex}; font-weight:bold;">${res.sym}</span><br><span style="color:${res.hex}; font-size:0.7rem;">${res.col}</span></td>`;
               }).join('');
-              return `<tr><th class="row-header">${s}</th>${cells}</tr>`;
+              return `<tr><th>${s}</th>${cells}</tr>`;
             }).join('');
 
             stepContent = `
               <div class="step2-box">
                 <div style="font-weight:bold; font-size:0.8rem; color:var(--accent);">【対応表】</div>
                 <table class="matrix-table">
-                  <thead><tr><th class="corner-header">記号＼色</th>${tableHeaders}</tr></thead>
+                  <thead><tr><th>記号＼色</th>${tableHeaders}</tr></thead>
                   <tbody>${tableRows}</tbody>
                 </table>
               </div>
@@ -1301,13 +1328,13 @@
                 <div>
                   <span style="font-size:0.75rem; color:var(--text-muted);">記号:</span>
                   <div style="display:flex; gap:6px; margin-top:2px;">
-                    ${line.step3.optionsSym.map(s => `<button class="sym-btn ${curSym === s ? 'selected' : ''}" onclick="selectSym('${lineKey}', '${s}')" ${line.step3.solved ? 'disabled' : ''}>${s}</button>`).join('')}
+                    ${line.step3.optionsSym.map(s => `<button class="sym-btn \${curSym === s ? 'selected' : ''}" onclick="selectSym('${lineKey}', '${s}')" ${line.step3.solved ? 'disabled' : ''}>${s}</button>`).join('')}
                   </div>
                 </div>
                 <div>
                   <span style="font-size:0.75rem; color:var(--text-muted);">色:</span>
                   <div style="display:flex; gap:6px; margin-top:2px;">
-                    ${line.step3.optionsCol.map(c => `<button class="color-btn ${curCol === c.name ? 'selected' : ''}" style="color:${c.hex}; border-color:${c.hex};" onclick="selectCol('${lineKey}', '${c.name}')" ${line.step3.solved ? 'disabled' : ''}>${c.name}</button>`).join('')}
+                    ${line.step3.optionsCol.map(c => `<button class="color-btn \${curCol === c.name ? 'selected' : ''}" style="color:${c.hex}; border-color:${c.hex};" onclick="selectCol('${lineKey}', '${c.name}')" ${line.step3.solved ? 'disabled' : ''}>${c.name}</button>`).join('')}
                   </div>
                 </div>
                 <div>
