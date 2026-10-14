@@ -170,26 +170,26 @@
     /* ステップ要素 */
     .step1-box { display: flex; gap: 14px; align-items: center; }
     .hover-sensor {
-      min-width: 90px; height: 80px; padding: 0 8px; background: #090d16; border: 2px dashed var(--border); border-radius: 8px;
+      min-width: 80px; height: 80px; padding: 0 8px; background: #090d16; border: 2px dashed var(--border); border-radius: 8px;
       display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;
     }
     .hover-sensor:hover { border-color: var(--accent); background: var(--accent-glow); }
     .sensor-secret { display: none; text-align: center; }
     .hover-sensor:hover .sensor-secret { display: block; }
     .hover-sensor:hover .sensor-placeholder { display: none; }
-    .secret-symbol { font-size: 2rem; line-height: 1; }
+    .secret-symbol { font-size: 2.2rem; line-height: 1; }
     .secret-color { font-size: 0.75rem; font-weight: bold; margin-top: 4px; }
-    .secret-num { font-size: 1.25rem; font-family: monospace; font-weight: bold; color: var(--yellow); letter-spacing: 1px; }
+    .secret-num { font-size: 1.6rem; font-family: monospace; font-weight: bold; color: var(--yellow); }
 
     .step2-box { background: #090d16; padding: 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.85rem; }
     .matrix-container { overflow-x: auto; margin-top: 8px; }
-    .matrix-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.8rem; }
-    .matrix-table th, .matrix-table td { border: 1px solid var(--border); padding: 6px 4px; min-width: 55px; }
+    .matrix-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.85rem; }
+    .matrix-table th, .matrix-table td { border: 1px solid var(--border); padding: 6px 4px; min-width: 58px; }
     .matrix-table th { background: #1e293b; color: var(--text-muted); font-size: 0.75rem; }
     .matrix-table .corner-header { background: #0b1329; color: var(--accent); font-weight: bold; }
-    .matrix-table .row-header { background: #1e293b; font-weight: bold; }
+    .matrix-table .row-header { background: #1e293b; font-weight: bold; font-size: 1.1rem; }
     .cell-val { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
-    .cell-sym { font-size: 1.1rem; line-height: 1; font-weight: bold; }
+    .cell-sym { font-size: 1.25rem; line-height: 1; font-weight: bold; }
     .cell-col { font-size: 0.7rem; font-weight: bold; }
 
     .converter-box {
@@ -198,7 +198,7 @@
     .converter-input-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .converter-input {
       background: #1e293b; border: 1px solid var(--border); color: var(--text); padding: 6px 10px;
-      font-size: 1.1rem; font-family: monospace; border-radius: 4px; width: 140px; text-align: center;
+      font-size: 1.1rem; font-family: monospace; border-radius: 4px; width: 120px; text-align: center;
     }
     .convert-btn { background: var(--yellow); color: #000; border: none; padding: 6px 14px; font-weight: bold; border-radius: 4px; cursor: pointer; }
     .key-result-badge {
@@ -218,7 +218,7 @@
     .selector-row { display: flex; gap: 8px; flex-wrap: wrap; }
     
     .sym-btn {
-      width: 44px; height: 44px; font-size: 1.5rem; background: #090d16; border: 1px solid var(--border);
+      width: 48px; height: 48px; font-size: 1.6rem; background: #090d16; border: 1px solid var(--border);
       color: var(--text); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;
     }
     .sym-btn:hover { border-color: var(--accent); }
@@ -484,25 +484,30 @@
     let plClientStates = {
       PL1: { chatInput: "", memo: "", b2Input: "", b2Key: null },
       PL2: { activeTab: "module", chatInput: "", memo: "", numpad: "", unlocked: { "A-2": false, "B-3": false, "C-1": false } },
-      PL3: { chatInput: "", memo: "", curSym: null, curCol: null }
+      PL3: { chatInput: "", memo: "", activeLine: null, curSym: null, curCol: null }
     };
 
-    // パズルデータ
+    // --- パズルデータ定義 ---
     const colors = [
       { name: "青", hex: "#38bdf8" }, { name: "黄", hex: "#eab308" },
       { name: "紫", hex: "#c084fc" }, { name: "赤", hex: "#f43f5e" }
     ];
-    const symbols = ["▲", "★", "◆", "●"];
+
+    // ★ モジュールA：見分けがつきにくく紛らわしい新シンボル群
+    // 入力記号（発見）: ⯁ (中塗りダイヤ), ⬖ (右半塗りダイヤ), ⬗ (左半塗りダイヤ), ◈ (二重ダイヤ)
+    // 出力記号（対応表・決定）: ⬓ (上半塗り四角), ⬒ (下半塗り四角), ◩ (右上半塗り四角), ◪ (左上半塗り四角)
+    const inSymbolsA = ["⯁", "⬖", "⬗", "◈"];
+    const outSymbolsA = ["⬓", "⬒", "◩", "◪"];
+
     const matrixA = {
-      "▲": { "青": { sym: "▼", col: "赤", hex: "#f43f5e" }, "黄": { sym: "■", col: "紫", hex: "#c084fc" }, "紫": { sym: "◎", col: "青", hex: "#38bdf8" }, "赤": { sym: "◆", col: "黄", hex: "#eab308" } },
-      "★": { "青": { sym: "◎", col: "黄", hex: "#eab308" }, "黄": { sym: "▼", col: "青", hex: "#38bdf8" }, "紫": { sym: "■", col: "赤", hex: "#f43f5e" }, "赤": { sym: "●", col: "紫", hex: "#c084fc" } },
-      "◆": { "青": { sym: "●", col: "紫", hex: "#c084fc" }, "黄": { sym: "◎", col: "赤", hex: "#f43f5e" }, "紫": { sym: "▼", col: "黄", hex: "#eab308" }, "赤": { sym: "■", col: "青", hex: "#38bdf8" } },
-      "●": { "青": { sym: "■", col: "赤", hex: "#f43f5e" }, "黄": { sym: "◆", col: "青", hex: "#38bdf8" }, "紫": { sym: "●", col: "黄", hex: "#eab308" }, "赤": { sym: "▼", col: "紫", hex: "#c084fc" } }
+      "⯁": { "青": { sym: "⬒", col: "赤", hex: "#f43f5e" }, "黄": { sym: "◩", col: "紫", hex: "#c084fc" }, "紫": { sym: "⬓", col: "青", hex: "#38bdf8" }, "赤": { sym: "◪", col: "黄", hex: "#eab308" } },
+      "⬖": { "青": { sym: "⬓", col: "黄", hex: "#eab308" }, "黄": { sym: "⬒", col: "青", hex: "#38bdf8" }, "紫": { sym: "◪", col: "赤", hex: "#f43f5e" }, "赤": { sym: "◩", col: "紫", hex: "#c084fc" } },
+      "⬗": { "青": { sym: "◩", col: "紫", hex: "#c084fc" }, "黄": { sym: "⬓", col: "赤", hex: "#f43f5e" }, "紫": { sym: "⬒", col: "黄", hex: "#eab308" }, "赤": { sym: "◪", col: "青", hex: "#38bdf8" } },
+      "◈": { "青": { sym: "◪", col: "赤", hex: "#f43f5e" }, "黄": { sym: "◩", col: "青", hex: "#38bdf8" }, "紫": { sym: "⬓", col: "黄", hex: "#eab308" }, "赤": { sym: "⬒", col: "紫", hex: "#c084fc" } }
     };
 
-    // モジュールB：紛らわしいシグナルコード候補リスト
-    const bSignalCandidates = ["8B-6G", "0D-8B", "9P-6Q", "5S-2Z", "B8-D0", "6G-9Q", "2Z-7T"];
-    let bCurrentSignal = "8B-6G";
+    // モジュールB：シグナル数字は「82」に戻し、偶数/奇数条件を適用
+    let bCurrentSignal = "82";
     let bParityTarget = "even"; // 'even' (偶数: 0,2,4) または 'odd' (奇数: 1,3,5)
     let bTargetPasscode = "729";
 
@@ -519,17 +524,17 @@
     const pipelineData = {
       A: {
         type: "symbol_matrix", name: "ラインA", tagClass: "pipe-A",
-        step1: { symbol: "▲", colorName: "青", hex: "#38bdf8" },
+        step1: { symbol: "⬖", colorName: "青", hex: "#38bdf8" },
         step2: { matrix: matrixA },
-        step3: { optionsSym: ["▲", "▼", "■", "◎"], optionsCol: colors, targetSym: "▼", targetCol: "赤", solved: false }
+        step3: { optionsSym: outSymbolsA, optionsCol: colors, targetSym: "⬓", targetCol: "黄", solved: false }
       },
       B: {
         type: "numeric_pass", name: "ラインB", tagClass: "pipe-B",
         step1: { rawCode: bCurrentSignal },
         step2: {
           convert: (val, sec10) => {
-            const cleanVal = (val || "").trim().toUpperCase();
-            if (cleanVal !== bCurrentSignal) return { success: false, reason: "シグナルコード不一致" };
+            const cleanVal = (val || "").trim();
+            if (cleanVal !== bCurrentSignal) return { success: false, reason: "数字不一致" };
             const isEven = (sec10 % 2 === 0);
             const expectedEven = (bParityTarget === "even");
             if (isEven !== expectedEven) {
@@ -589,7 +594,6 @@
       }, 1000);
     }
 
-    // 分数部・秒数部を完全連動表示
     function updateTimerDisplay() {
       const m = Math.floor(totalSec / 60);
       const s = totalSec % 60;
@@ -802,17 +806,14 @@
       startTimer();
       bTargetPasscode = Math.floor(100 + Math.random() * 900).toString();
       
-      // ランダムでシグナルコード＆奇数偶数条件を生成
-      bCurrentSignal = bSignalCandidates[Math.floor(Math.random() * bSignalCandidates.length)];
+      // モジュールB：シグナルは82、偶数/奇数条件をランダム決定
       bParityTarget = (Math.random() < 0.5) ? "even" : "odd";
-      pipelineData.B.step1.rawCode = bCurrentSignal;
 
       broadcastToClients({
         type: 'START_GAME',
         passcodes: pl2Passcodes,
         lineCButtons: lineCButtonsByRole,
         bPass: bTargetPasscode,
-        bSignal: bCurrentSignal,
         bParity: bParityTarget
       });
       hostLog(`全員の準備が完了。ゲーム本番開始 (制限時間6分 / モジュールB条件: 秒の十の位が${bParityTarget === 'even' ? '偶数' : '奇数'})`, 'info');
@@ -930,9 +931,7 @@
         pl2Passcodes = data.passcodes;
         lineCButtonsByRole = data.lineCButtons;
         bTargetPasscode = data.bPass;
-        bCurrentSignal = data.bSignal;
         bParityTarget = data.bParity;
-        pipelineData.B.step1.rawCode = bCurrentSignal;
 
         isGameRunning = true;
         totalSec = 360;
@@ -1121,8 +1120,7 @@
 
       let myTasks = [...roleAssignments[activeRole]];
 
-      // ★ PL3の開示対象判定ロジック修正
-      // PL3の開示順序（A, B, C）の中で、未クリアの最初のラインを特定する
+      // ★ PL3の開示対象判定ロジック
       let pl3ActiveLine = null;
       let solvedCount = 0;
       for (const lineKey of pl3ShuffledOrder) {
@@ -1155,7 +1153,6 @@
         const isPl2LockedForPlayer = (activeRole === "PL2" && !pl2Unlocked[moduleId] && myRole !== 'HOST');
         const isPl2Module = (activeRole === "PL2");
 
-        // ★PL3の発光判定修正:
         // PL3本人が現在表示中のモジュール（pl3ActiveLine）と完全一致するカードのみを発光させる
         const isPl3ActiveCard = (activeRole === "PL3" && lineKey === pl3ActiveLine && !isCompleted);
         const isActiveTask = !isCompleted && !isPl2LockedForPlayer;
@@ -1240,14 +1237,14 @@
                   <span class="sensor-placeholder" style="color:var(--text-muted); font-size:0.75rem;">[ 乗せる ]</span>
                   <div class="sensor-secret"><div class="secret-num">${line.step1.rawCode}</div></div>
                 </div>
-                <div style="font-size:0.85rem;">検出コード: <b>${moduleId}</b></div>
+                <div style="font-size:0.85rem;">表示された数字: <b>${moduleId}</b></div>
               </div>
             `;
           } else if (stepNum === 2) {
             stepContent = `
               <div class="converter-box">
                 <div class="converter-input-row">
-                  <input type="text" id="b2Input" class="converter-input" placeholder="コード入力" maxlength="6" value="${b2InputVal}" oninput="handleB2Input(this.value)">
+                  <input type="text" id="b2Input" class="converter-input" placeholder="数字" maxlength="4" value="${b2InputVal}" oninput="handleB2Input(this.value)">
                   <button class="convert-btn" onclick="executeB2Convert()">パスワードを出す</button>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
@@ -1282,6 +1279,7 @@
             `;
           }
         } else {
+          // モジュールA：見分けのつきにくい新記号
           if (stepNum === 1) {
             stepContent = `
               <div class="step1-box">
@@ -1298,19 +1296,19 @@
           } else if (stepNum === 2) {
             const mData = line.step2.matrix;
             let tableHeaders = colors.map(c => `<th style="color:${c.hex};">${c.name}</th>`).join('');
-            let tableRows = symbols.map(s => {
+            let tableRows = inSymbolsA.map(s => {
               let cells = colors.map(c => {
                 const res = mData[s][c.name];
-                return `<td><span style="color:${res.hex}; font-weight:bold;">${res.sym}</span><br><span style="color:${res.hex}; font-size:0.7rem;">${res.col}</span></td>`;
+                return `<td><span class="cell-sym" style="color:${res.hex};">${res.sym}</span><br><span class="cell-col" style="color:${res.hex};">${res.col}</span></td>`;
               }).join('');
-              return `<tr><th>${s}</th>${cells}</tr>`;
+              return `<tr><th class="row-header">${s}</th>${cells}</tr>`;
             }).join('');
 
             stepContent = `
               <div class="step2-box">
                 <div style="font-weight:bold; font-size:0.8rem; color:var(--accent);">【対応表】</div>
                 <table class="matrix-table">
-                  <thead><tr><th>記号＼色</th>${tableHeaders}</tr></thead>
+                  <thead><tr><th class="corner-header">入力＼色</th>${tableHeaders}</tr></thead>
                   <tbody>${tableRows}</tbody>
                 </table>
               </div>
