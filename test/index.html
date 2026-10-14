@@ -657,25 +657,47 @@
 
     // --- ホストPeerJS ---
     function initHostPeer() {
-      peer = new Peer();
-      peer.on('open', id => {
-        hostLog(`ホスト起動完了。ID: ${id}`, 'info');
-        const currentUrl = window.location.origin + window.location.pathname;
-        const shareUrl = `${currentUrl}?host=${id}`;
-        document.getElementById('shareUrlInput').value = shareUrl;
-      });
-
-      peer.on('connection', conn => {
-        connections.push(conn);
-        conn.on('data', data => {
-          handleDataAsHost(conn, data);
-        });
-        conn.on('close', () => {
-          connections = connections.filter(c => c !== conn);
-          hostLog(`参加者切断: ${conn.peer}`, 'warn');
-        });
-      });
+  // STUNサーバーを指定して異なる回線間のNAT超えを有効化
+  peer = new Peer({
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
     }
+  });
+
+  peer.on('open', id => {
+    hostLog(`ホスト起動完了。ID: ${id}`, 'info');
+    const currentUrl = window.location.origin + window.location.pathname;
+    const shareUrl = `${currentUrl}?host=${id}`;
+    document.getElementById('shareUrlInput').value = shareUrl;
+  });
+
+  // エラーハンドリングを追加（原因の特定用）
+  peer.on('error', err => {
+    hostLog(`【PeerJSエラー】${err.type}: ${err.message}`, 'error');
+  });
+
+  peer.on('connection', conn => {
+    connections.push(conn);
+    hostLog(`参加者接続検知: ${conn.peer}`, 'info');
+
+    conn.on('open', () => {
+      hostLog(`参加者とのデータチャンネル開通: ${conn.peer}`, 'info');
+      // 接続してきた端末へ現在の選択状況を即座に共有
+      conn.send({ type: 'ROLE_TAKEN_SYNC', roleTaken: roleTaken });
+    });
+
+    conn.on('data', data => {
+      handleDataAsHost(conn, data);
+    });
+    conn.on('close', () => {
+      connections = connections.filter(c => c !== conn);
+      hostLog(`参加者切断: ${conn.peer}`, 'warn');
+    });
+  });
+}
 
     function copyShareUrl() {
       const input = document.getElementById('shareUrlInput');
@@ -892,14 +914,41 @@
 
     // --- PL側通信 ---
     function initClientPreConnection() {
-      peer = new Peer();
-      peer.on('open', id => {
-        hostConn = peer.connect(hostPeerId);
-        hostConn.on('data', data => {
-          handleDataAsClient(data);
-        });
-      });
+  peer = new Peer({
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
     }
+  });
+
+  peer.on('open', id => {
+    // reliable: true を指定してデータ欠損を防止
+    hostConn = peer.connect(hostPeerId, { reliable: true });
+
+    hostConn.on('open', () => {
+      // 接続成功したらボタンを押せるようにする・または状態確認
+      const waitMsg = document.getElementById('selectWaitMsg');
+      if (waitMsg && waitMsg.style.display !== 'none') {
+        waitMsg.textContent = "ホストと接続しました。開始合図を待っています...";
+      }
+    });
+
+    hostConn.on('data', data => {
+      handleDataAsClient(data);
+    });
+
+    hostConn.on('close', () => {
+      alert("ホストとの接続が切断されました。");
+    });
+  });
+
+  peer.on('error', err => {
+    console.error("PeerJS Error:", err);
+    alert(`通信エラーが発生しました (${err.type}): ページを再読み込みしてください。`);
+  });
+}
 
     function selectMyRole(role) {
       if (roleTaken[role]) return;
