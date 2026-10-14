@@ -32,7 +32,6 @@
     .timer-badge { background: #000; padding: 4px 8px; border-radius: 4px; font-family: monospace; border: 1px solid var(--border); }
     .timer-sec10 { color: var(--yellow); font-weight: bold; font-size: 1.1rem; text-decoration: underline; }
 
-    /* ボタン共通 */
     button {
       background: var(--border); color: var(--text); border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: bold; transition: all 0.15s;
     }
@@ -216,7 +215,6 @@
     .selection-label { font-size: 0.8rem; font-weight: bold; color: var(--text); }
     .selector-row { display: flex; gap: 10px; flex-wrap: wrap; }
     
-    /* ★ モジュールA-3 選択ボタンの視認性強化 */
     .sym-btn {
       width: 52px; height: 52px; font-size: 1.7rem; background: #090d16; border: 2px solid var(--border);
       color: var(--text); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;
@@ -243,13 +241,11 @@
       transform: scale(1.06);
     }
 
-    /* 選択状態明示テキスト */
     .selected-status-bar {
       background: #090d16; border: 1px dashed var(--accent); border-radius: 6px; padding: 6px 12px;
       font-size: 0.85rem; color: var(--accent); display: flex; align-items: center; gap: 12px;
     }
 
-    /* テンキー */
     .numpad-container { display: flex; flex-direction: column; gap: 6px; width: 180px; }
     .numpad-display {
       background: #090d16; border: 1px solid var(--border); color: var(--yellow); font-family: monospace;
@@ -280,7 +276,6 @@
       background: var(--accent); color: #000; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; align-self: flex-start;
     }
 
-    /* ホスト閲覧モード時の入力干渉防止 (観覧専用) */
     .host-view-mode input,
     .host-view-mode textarea {
       pointer-events: none !important;
@@ -293,7 +288,6 @@
       cursor: not-allowed !important;
     }
 
-    /* ホスト常駐型フローティングコンソール */
     #hostFloatingConsole {
       position: fixed; bottom: 12px; right: 12px; width: 450px; z-index: 9999;
       background: rgba(9, 13, 22, 0.94); border: 2px solid var(--accent); border-radius: 8px;
@@ -306,14 +300,12 @@
 </head>
 <body>
 
-  <!-- ヘッダー -->
   <header>
     <div class="header-title" id="systemTitle">非同期コミュニケーション協力ゲーム α版</div>
     <div class="status-group">
       <div>残り時間: <span class="timer-badge"><span id="timerMin">06</span>:<span id="sec10" class="timer-sec10">0</span><span id="sec1">0</span></span></div>
       <div>進捗: <span id="syncProgress" style="font-weight:bold; color:var(--accent);">0 / 3 完了</span></div>
       <div id="roleIndicator" style="font-weight:bold; color:var(--yellow);">未確定</div>
-      <!-- ホスト専用視点切替バー -->
       <div id="hostRoleSwitcher" style="display:none; margin-left:10px; align-items:center; gap:6px;">
         <span style="font-size:0.8rem; color:var(--text-muted);">ホスト視点切替:</span>
         <button class="role-btn active" id="host-view-PL1" onclick="hostChangeView('PL1')">PL1画面</button>
@@ -420,7 +412,6 @@
           <div class="char-counter"><span id="charCount">0</span>/40文字</div>
         </div>
 
-        <!-- PL1, PL3専用チャット下メモ欄 -->
         <div class="memo-section" id="chatBottomMemoSection">
           <div class="memo-header"><span>📝 メモ帳</span><span style="font-size:0.75rem; color:var(--text-muted);">自分専用</span></div>
           <textarea id="chatMemoTextarea" class="memo-textarea" placeholder="気付いたことや番号をメモ..." oninput="handlePlMemoInput(this.value)"></textarea>
@@ -439,7 +430,7 @@
     </div>
   </div>
 
-  <!-- 画面5: 終了・アンケート画面 -->
+  <!-- 画面5: 終了画面 -->
   <div id="view-result" class="view-container">
     <div class="panel" style="text-align:center; padding:40px 20px;">
       <h2 id="resultTitle" style="color:var(--accent); margin-bottom:12px;">実験終了</h2>
@@ -461,7 +452,7 @@
     </div>
   </div>
 
-  <!-- ホスト専用：画面端常駐型コンソール -->
+  <!-- ホスト専用フローティングコンソール -->
   <div id="hostFloatingConsole">
     <div class="console-header">
       <span style="font-weight:bold; font-size:0.85rem; color:var(--accent);">🖥️ ホスト監査コンソール (常時表示)</span>
@@ -476,7 +467,6 @@
   </div>
 
   <script>
-    // --- グローバル状態 ---
     let myRole = null;
     let hostViewingRole = 'PL1';
     let hostPeerId = null;
@@ -488,14 +478,12 @@
     let roleTaken = { PL1: false, PL2: false, PL3: false };
     let readyPlayers = { PL1: false, PL2: false, PL3: false };
 
-    // 各PLのリアルタイムUI状態
     let plClientStates = {
       PL1: { chatInput: "", memo: "", b2Input: "", b2Key: null },
       PL2: { activeTab: "module", chatInput: "", memo: "", numpad: "", unlocked: { "A-2": false, "B-3": false, "C-1": false } },
       PL3: { chatInput: "", memo: "", curSym: null, curCol: null }
     };
 
-    // パズルデータ
     const colors = [
       { name: "青", hex: "#38bdf8" }, { name: "黄", hex: "#eab308" },
       { name: "紫", hex: "#c084fc" }, { name: "赤", hex: "#f43f5e" }
@@ -573,7 +561,6 @@
     let masterMessages = [];
     let displayedMessages = [];
 
-    // --- タイマー ---
     let totalSec = 360;
     let timerInterval = null;
 
@@ -635,7 +622,6 @@
       }
     }
 
-    // --- 起動 ---
     window.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
       const hostParam = params.get('host');
@@ -655,49 +641,45 @@
       }
     });
 
-    // --- ホストPeerJS ---
     function initHostPeer() {
-  // STUNサーバーを指定して異なる回線間のNAT超えを有効化
-  peer = new Peer({
-    config: {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
+      peer = new Peer({
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ]
+        }
+      });
+
+      peer.on('open', id => {
+        hostLog(`ホスト起動完了。ID: ${id}`, 'info');
+        const currentUrl = window.location.origin + window.location.pathname;
+        const shareUrl = `${currentUrl}?host=${id}`;
+        document.getElementById('shareUrlInput').value = shareUrl;
+      });
+
+      peer.on('error', err => {
+        hostLog(`【PeerJSエラー】${err.type}: ${err.message}`, 'error');
+      });
+
+      peer.on('connection', conn => {
+        connections.push(conn);
+        hostLog(`参加者接続検知: ${conn.peer}`, 'info');
+
+        conn.on('open', () => {
+          hostLog(`参加者とのデータチャンネル開通: ${conn.peer}`, 'info');
+          conn.send({ type: 'ROLE_TAKEN_SYNC', roleTaken: roleTaken });
+        });
+
+        conn.on('data', data => {
+          handleDataAsHost(conn, data);
+        });
+        conn.on('close', () => {
+          connections = connections.filter(c => c !== conn);
+          hostLog(`参加者切断: ${conn.peer}`, 'warn');
+        });
+      });
     }
-  });
-
-  peer.on('open', id => {
-    hostLog(`ホスト起動完了。ID: ${id}`, 'info');
-    const currentUrl = window.location.origin + window.location.pathname;
-    const shareUrl = `${currentUrl}?host=${id}`;
-    document.getElementById('shareUrlInput').value = shareUrl;
-  });
-
-  // エラーハンドリングを追加（原因の特定用）
-  peer.on('error', err => {
-    hostLog(`【PeerJSエラー】${err.type}: ${err.message}`, 'error');
-  });
-
-  peer.on('connection', conn => {
-    connections.push(conn);
-    hostLog(`参加者接続検知: ${conn.peer}`, 'info');
-
-    conn.on('open', () => {
-      hostLog(`参加者とのデータチャンネル開通: ${conn.peer}`, 'info');
-      // 接続してきた端末へ現在の選択状況を即座に共有
-      conn.send({ type: 'ROLE_TAKEN_SYNC', roleTaken: roleTaken });
-    });
-
-    conn.on('data', data => {
-      handleDataAsHost(conn, data);
-    });
-    conn.on('close', () => {
-      connections = connections.filter(c => c !== conn);
-      hostLog(`参加者切断: ${conn.peer}`, 'warn');
-    });
-  });
-}
 
     function copyShareUrl() {
       const input = document.getElementById('shareUrlInput');
@@ -730,6 +712,7 @@
       area.style.display = (area.style.display === 'none') ? 'block' : 'none';
     }
 
+    // ホスト側の受信・中継処理
     function handleDataAsHost(senderConn, data) {
       if (data.type === 'SELECT_ROLE') {
         roleTaken[data.role] = true;
@@ -748,26 +731,30 @@
         else pipelineData[data.line].step3.solved = true;
         hostLog(`【解除成功】[${data.senderRole}] が [ライン${data.line}] の認証に成功し解除を完了しました！`, 'info');
         checkGameClear();
-        broadcastToClients(data);
+        broadcastToClients(data); // 全PLへ解除状態を同期
         renderModules();
       } else if (data.type === 'CHAT') {
         hostLog(`【チャット】[${data.message.sender}] "${data.message.text}"`, 'chat');
         masterMessages.push(data.message);
-        broadcastToClients(data);
+        broadcastToClients(data); // 全PLへチャットを同期
         renderChatLog();
       } else if (data.type === 'SEQ_UPDATE') {
+        currentTargetNumC = data.nextTarget;
         hostLog(`【正しい入力】[ラインC] ${data.senderRole} が番号 [${data.pressedNum}] を押下 (次の目標番号: [${data.nextTarget}])`);
-        broadcastToClients(data);
+        broadcastToClients(data); // 全PLへラインCの進捗を同期
         renderModules();
       } else if (data.type === 'SEQ_RESET') {
+        currentTargetNumC = 1;
+        lineCButtonsByRole = data.buttons;
         hostLog(`【間違えた入力】[ラインC] ${data.senderRole} が誤って [${data.wrongNum}] を押下 (正解は [${data.expectedNum}]) ➜ リセット＆再シャッフル実行`, 'error');
-        broadcastToClients(data);
+        broadcastToClients(data); // 全PLへリセット状態を同期
         renderModules();
       } else if (data.type === 'LOG_ERROR') {
         hostLog(`【間違えた入力】[${data.senderRole}] ${data.detail}`, 'error');
       } else if (data.type === 'PL_UNLOCK_SUCCESS') {
         pl2Unlocked[data.moduleId] = true;
         hostLog(`【ロック解除】[${data.role}] がモジュール [${data.moduleId}] の画面ロック解除に成功`, 'info');
+        broadcastToClients(data); // 全PLへロック解除状態を同期
         renderModules();
       } else if (data.type === 'PL_FULL_STATE_SYNC') {
         plClientStates[data.role] = data.state;
@@ -912,43 +899,39 @@
       hostTriggerTutorial();
     }
 
-    // --- PL側通信 ---
     function initClientPreConnection() {
-  peer = new Peer({
-    config: {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
+      peer = new Peer({
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ]
+        }
+      });
+
+      peer.on('open', id => {
+        hostConn = peer.connect(hostPeerId, { reliable: true });
+
+        hostConn.on('open', () => {
+          const waitMsg = document.getElementById('selectWaitMsg');
+          if (waitMsg && waitMsg.style.display !== 'none') {
+            waitMsg.textContent = "ホストと接続しました。開始合図を待っています...";
+          }
+        });
+
+        hostConn.on('data', data => {
+          handleDataAsClient(data);
+        });
+
+        hostConn.on('close', () => {
+          alert("ホストとの接続が切断されました。");
+        });
+      });
+
+      peer.on('error', err => {
+        console.error("PeerJS Error:", err);
+      });
     }
-  });
-
-  peer.on('open', id => {
-    // reliable: true を指定してデータ欠損を防止
-    hostConn = peer.connect(hostPeerId, { reliable: true });
-
-    hostConn.on('open', () => {
-      // 接続成功したらボタンを押せるようにする・または状態確認
-      const waitMsg = document.getElementById('selectWaitMsg');
-      if (waitMsg && waitMsg.style.display !== 'none') {
-        waitMsg.textContent = "ホストと接続しました。開始合図を待っています...";
-      }
-    });
-
-    hostConn.on('data', data => {
-      handleDataAsClient(data);
-    });
-
-    hostConn.on('close', () => {
-      alert("ホストとの接続が切断されました。");
-    });
-  });
-
-  peer.on('error', err => {
-    console.error("PeerJS Error:", err);
-    alert(`通信エラーが発生しました (${err.type}): ページを再読み込みしてください。`);
-  });
-}
 
     function selectMyRole(role) {
       if (roleTaken[role]) return;
@@ -1008,6 +991,9 @@
       } else if (data.type === 'SEQ_RESET') {
         currentTargetNumC = 1;
         lineCButtonsByRole = data.buttons;
+        renderModules();
+      } else if (data.type === 'PL_UNLOCK_SUCCESS') {
+        pl2Unlocked[data.moduleId] = true;
         renderModules();
       } else if (data.type === 'END_GAME') {
         endGame(data.reason);
@@ -1325,7 +1311,6 @@
             `;
           }
         } else {
-          // モジュールA：見分けのつきにくい新記号
           if (stepNum === 1) {
             stepContent = `
               <div class="step1-box">
@@ -1369,7 +1354,6 @@
 
             stepContent = `
               <div class="step3-box">
-                <!-- 選択状況の明確な表示バー -->
                 <div class="selected-status-bar">
                   <span>選択中: 記号 <b style="font-size:1.2rem; color:#fff;">[ ${curSym || "未選択"} ]</b></span>
                   <span>色 <b style="font-size:1.1rem; color:#fff;">[ ${curCol || "未選択"} ]</b></span>
@@ -1401,7 +1385,6 @@
       });
     }
 
-    // --- ロック解除処理 ---
     function tryUnlock(btnEl, moduleId) {
       if (myRole === 'HOST') return;
       const box = btnEl.closest('.lock-box');
@@ -1491,7 +1474,6 @@
       }
     }
 
-    // ★ テンキー入力処理の確実な反映
     function pressNumpad(num) {
       if (myRole === 'HOST') return;
       if (numpadInputB.length < 3) {
