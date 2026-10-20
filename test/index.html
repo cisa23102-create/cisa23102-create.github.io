@@ -46,6 +46,7 @@
     .view-container.active { display: block; }
     .panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
 
+    /* PL2専用タブバー */
     .pl2-bar-container {
       display: none; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;
       background: #090d16; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); flex-wrap: wrap;
@@ -56,10 +57,12 @@
       box-shadow: 0 0 10px var(--accent-glow);
     }
 
+    /* グリッドレイアウト */
     .main-grid { display: grid; grid-template-columns: 340px 1fr; gap: 14px; }
     .single-view { display: block !important; }
     @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
 
+    /* チャットエリア */
     .chat-section {
       background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px;
       display: flex; flex-direction: column; gap: 10px; transition: border-color 0.2s, box-shadow 0.2s;
@@ -98,6 +101,7 @@
     .send-btn { background: var(--accent); color: #000; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; }
     .char-counter { font-size: 0.75rem; color: var(--text-muted); text-align: right; }
 
+    /* メモ欄 */
     .memo-section {
       margin-top: 6px; border-top: 1px solid var(--border); padding-top: 8px; display: flex; flex-direction: column; gap: 4px;
     }
@@ -107,6 +111,7 @@
       border-radius: 4px; font-size: 0.85rem; height: 68px; resize: none; width: 100%;
     }
 
+    /* モジュールエリア */
     .modules-section { display: flex; flex-direction: column; gap: 12px; }
 
     .otp-display-panel {
@@ -160,6 +165,7 @@
     }
     .unlock-btn { background: var(--yellow); color: #000; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; }
 
+    /* ステップ要素 */
     .step1-box { display: flex; gap: 14px; align-items: center; }
     .hover-sensor {
       min-width: 80px; height: 80px; padding: 0 8px; background: #090d16; border: 2px dashed var(--border); border-radius: 8px;
@@ -240,6 +246,7 @@
       font-size: 0.85rem; color: var(--accent); display: flex; align-items: center; gap: 12px;
     }
 
+    /* テンキー */
     .numpad-container { display: flex; flex-direction: column; gap: 6px; width: 180px; }
     .numpad-display {
       background: #090d16; border: 1px solid var(--border); color: var(--yellow); font-family: monospace;
@@ -333,7 +340,7 @@
     </div>
   </div>
 
-  <!-- 画面2: 役職選択画面 -->
+  <!-- 画面2: PL共通 役職選択画面 -->
   <div id="view-select" class="view-container">
     <div class="panel" style="text-align:center; padding:40px 20px;">
       <h2 style="color:var(--accent); margin-bottom:12px;">担当プレイヤーの選択</h2>
@@ -475,11 +482,12 @@
       PL3: { chatInput: "", memo: "", curSym: null, curCol: null }
     };
 
-    // ★ STUN + TURN (OpenRelay) の完全設定
+    // ★ 学内Wi-FiやNAT/ファイアウォールを確実に突破するSTUN/TURN設定
     const rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
         {
           urls: 'turn:openrelay.metered.ca:80',
           username: 'openrelayproject',
@@ -487,6 +495,11 @@
         },
         {
           urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
           username: 'openrelayproject',
           credential: 'openrelayproject'
         }
@@ -650,7 +663,7 @@
       }
     });
 
-    // ホスト初期化（TURN + 即座のDataChannel管理）
+    // ホスト初期化（即時DataChannelバインド）
     function initHostPeer() {
       peer = new Peer({ config: rtcConfig });
 
@@ -666,10 +679,14 @@
       });
 
       peer.on('connection', conn => {
-        if (!connections.includes(conn)) connections.push(conn);
         hostLog(`参加者接続検知: ${conn.peer}`, 'info');
+        
+        // 接続配列に重複なく登録
+        if (!connections.some(c => c.peer === conn.peer)) {
+          connections.push(conn);
+        }
 
-        const setupEvents = () => {
+        const markChannelOpen = () => {
           hostLog(`参加者とのデータチャンネル開通: ${conn.peer}`, 'info');
           try {
             conn.send({ type: 'ROLE_TAKEN_SYNC', roleTaken: roleTaken });
@@ -677,9 +694,9 @@
         };
 
         if (conn.open) {
-          setupEvents();
+          markChannelOpen();
         } else {
-          conn.on('open', setupEvents);
+          conn.on('open', markChannelOpen);
         }
 
         conn.on('data', data => {
@@ -694,7 +711,7 @@
         });
 
         conn.on('close', () => {
-          connections = connections.filter(c => c !== conn);
+          connections = connections.filter(c => c.peer !== conn.peer);
           hostLog(`参加者切断: ${conn.peer}`, 'warn');
         });
 
@@ -921,18 +938,18 @@
       hostTriggerTutorial();
     }
 
-    // ★ クライアント初期化（serialization: 'json' + PING ハンドシェイク）
+    // クライアント側（serialization: 'json' + 接続リトライ + PING維持）
     function initClientPreConnection() {
       peer = new Peer({ config: rtcConfig });
 
       peer.on('open', id => {
-        // iOS Safari と PC Chrome 間での互換性を保つため serialization: 'json' を指定
+        // serialization: 'json' で Safari/Chrome 間の互換性を担保
         hostConn = peer.connect(hostPeerId, { reliable: true, serialization: 'json' });
 
-        hostConn.on('open', () => {
-          // 開通のハンドシェイクPINGを送信
+        const setupClientEvents = () => {
+          // 即座にPINGを飛ばしてデータチャンネルを活性化
           hostConn.send({ type: 'PING', senderPeer: id });
-          
+
           while (outboundQueue.length > 0) {
             hostConn.send(outboundQueue.shift());
           }
@@ -941,7 +958,13 @@
             waitMsg.textContent = "ホストと接続完了。開始合図を待っています...";
             waitMsg.style.color = "var(--green)";
           }
-        });
+        };
+
+        if (hostConn.open) {
+          setupClientEvents();
+        } else {
+          hostConn.on('open', setupClientEvents);
+        }
 
         hostConn.on('data', data => {
           handleDataAsClient(data);
@@ -954,12 +977,6 @@
 
       peer.on('error', err => {
         console.error("PeerJS Error:", err);
-        const waitMsg = document.getElementById('selectWaitMsg');
-        if (waitMsg) {
-          waitMsg.style.display = 'block';
-          waitMsg.textContent = `通信エラー (${err.type}): 再読み込みしてください`;
-          waitMsg.style.color = "var(--red)";
-        }
       });
     }
 
@@ -1599,7 +1616,7 @@
       } else {
         b.style.display = "none";
         const pl2B = document.getElementById('pl2ChatUnread');
-        if (pl2B) pl2B.style.display = "none";
+        if (pl2B && activeRole === 'PL2') pl2B.style.display = "none";
       }
     }
 
