@@ -46,7 +46,6 @@
     .view-container.active { display: block; }
     .panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
 
-    /* PL2専用タブバー */
     .pl2-bar-container {
       display: none; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;
       background: #090d16; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); flex-wrap: wrap;
@@ -57,12 +56,10 @@
       box-shadow: 0 0 10px var(--accent-glow);
     }
 
-    /* グリッドレイアウト */
     .main-grid { display: grid; grid-template-columns: 340px 1fr; gap: 14px; }
     .single-view { display: block !important; }
     @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
 
-    /* チャットエリア */
     .chat-section {
       background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px;
       display: flex; flex-direction: column; gap: 10px; transition: border-color 0.2s, box-shadow 0.2s;
@@ -101,7 +98,6 @@
     .send-btn { background: var(--accent); color: #000; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; }
     .char-counter { font-size: 0.75rem; color: var(--text-muted); text-align: right; }
 
-    /* メモ欄 */
     .memo-section {
       margin-top: 6px; border-top: 1px solid var(--border); padding-top: 8px; display: flex; flex-direction: column; gap: 4px;
     }
@@ -111,7 +107,6 @@
       border-radius: 4px; font-size: 0.85rem; height: 68px; resize: none; width: 100%;
     }
 
-    /* モジュールエリア */
     .modules-section { display: flex; flex-direction: column; gap: 12px; }
 
     .otp-display-panel {
@@ -165,7 +160,6 @@
     }
     .unlock-btn { background: var(--yellow); color: #000; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; }
 
-    /* ステップ要素 */
     .step1-box { display: flex; gap: 14px; align-items: center; }
     .hover-sensor {
       min-width: 80px; height: 80px; padding: 0 8px; background: #090d16; border: 2px dashed var(--border); border-radius: 8px;
@@ -371,7 +365,6 @@
 
   <!-- 画面4: ゲームプレイ画面 -->
   <div id="view-game" class="view-container" style="max-width:1100px;">
-    <!-- PL2専用タブバー -->
     <div class="pl2-bar-container" id="pl2BarContainer">
       <div class="pl2-tab-group">
         <span style="font-size:0.85rem; font-weight:bold; color:var(--yellow);">表示画面:</span>
@@ -384,7 +377,6 @@
     </div>
 
     <div class="main-grid" id="gameMainGrid">
-      <!-- PL2専用メモ画面 -->
       <div class="chat-section" id="pl2MemoSection" style="display:none; height:460px;">
         <div class="chat-header">
           <span style="font-weight:bold; font-size:0.95rem; color:var(--yellow);">📝 メモ画面</span>
@@ -392,7 +384,6 @@
         <textarea id="pl2DedicatedTextarea" style="flex:1; width:100%; background:#090d16; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; font-size:0.95rem; line-height:1.6; resize:none;" placeholder="ここにメモを入力..." oninput="handlePl2MemoInput(this.value)"></textarea>
       </div>
 
-      <!-- チャット画面 -->
       <div class="chat-section" id="chatSection">
         <div class="chat-header">
           <span style="font-weight:bold; font-size:0.9rem;">チャット</span>
@@ -418,7 +409,6 @@
         </div>
       </div>
 
-      <!-- モジュール表示画面 -->
       <div class="modules-section" id="modulesSection">
         <div class="otp-display-panel" id="otpPanel" style="display:none;"></div>
         <div class="pl3-info-banner" id="pl3Banner" style="display:none;">
@@ -467,7 +457,6 @@
   </div>
 
   <script>
-    // グローバル状態
     let myRole = null;
     let hostViewingRole = 'PL1';
     let hostPeerId = null;
@@ -475,7 +464,7 @@
     let connections = [];
     let hostConn = null;
     let isGameRunning = false;
-    let outboundQueue = []; // 開通前の送信キュー
+    let outboundQueue = [];
 
     let roleTaken = { PL1: false, PL2: false, PL3: false };
     let readyPlayers = { PL1: false, PL2: false, PL3: false };
@@ -486,7 +475,7 @@
       PL3: { chatInput: "", memo: "", curSym: null, curCol: null }
     };
 
-    // ★ STUN + 確実なNAT越え用TURNリレーサーバー設定
+    // ★ STUN + TURN (OpenRelay) の完全設定
     const rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -661,7 +650,7 @@
       }
     });
 
-    // ホスト初期化（TURNサーバー付き）
+    // ホスト初期化（TURN + 即座のDataChannel管理）
     function initHostPeer() {
       peer = new Peer({ config: rtcConfig });
 
@@ -677,22 +666,40 @@
       });
 
       peer.on('connection', conn => {
+        if (!connections.includes(conn)) connections.push(conn);
         hostLog(`参加者接続検知: ${conn.peer}`, 'info');
 
-        conn.on('open', () => {
-          connections.push(conn);
+        const setupEvents = () => {
           hostLog(`参加者とのデータチャンネル開通: ${conn.peer}`, 'info');
-          // 接続確立直後に現在の選択状態を即座に送信
-          conn.send({ type: 'ROLE_TAKEN_SYNC', roleTaken: roleTaken });
-        });
+          try {
+            conn.send({ type: 'ROLE_TAKEN_SYNC', roleTaken: roleTaken });
+          } catch(e) {}
+        };
+
+        if (conn.open) {
+          setupEvents();
+        } else {
+          conn.on('open', setupEvents);
+        }
 
         conn.on('data', data => {
+          if (data && data.type === 'PING') {
+            hostLog(`クライアント疎通確認受信 (PING): ${conn.peer}`, 'normal');
+            try {
+              conn.send({ type: 'ROLE_TAKEN_SYNC', roleTaken: roleTaken });
+            } catch(e) {}
+            return;
+          }
           handleDataAsHost(conn, data);
         });
 
         conn.on('close', () => {
           connections = connections.filter(c => c !== conn);
           hostLog(`参加者切断: ${conn.peer}`, 'warn');
+        });
+
+        conn.on('error', err => {
+          hostLog(`接続エラー (${conn.peer}): ${err}`, 'error');
         });
       });
     }
@@ -728,7 +735,6 @@
       area.style.display = (area.style.display === 'none') ? 'block' : 'none';
     }
 
-    // ホストの受信・ブロードキャスト（中継）処理
     function handleDataAsHost(senderConn, data) {
       if (data.type === 'SELECT_ROLE') {
         roleTaken[data.role] = true;
@@ -915,21 +921,25 @@
       hostTriggerTutorial();
     }
 
-    // PL側初期化（TURNサーバー付き ＋ 再試行キュー）
+    // ★ クライアント初期化（serialization: 'json' + PING ハンドシェイク）
     function initClientPreConnection() {
       peer = new Peer({ config: rtcConfig });
 
       peer.on('open', id => {
-        hostConn = peer.connect(hostPeerId, { reliable: true });
+        // iOS Safari と PC Chrome 間での互換性を保つため serialization: 'json' を指定
+        hostConn = peer.connect(hostPeerId, { reliable: true, serialization: 'json' });
 
         hostConn.on('open', () => {
-          // キューに溜まっているデータを一括送信
+          // 開通のハンドシェイクPINGを送信
+          hostConn.send({ type: 'PING', senderPeer: id });
+          
           while (outboundQueue.length > 0) {
             hostConn.send(outboundQueue.shift());
           }
           const waitMsg = document.getElementById('selectWaitMsg');
           if (waitMsg && waitMsg.style.display !== 'none') {
             waitMsg.textContent = "ホストと接続完了。開始合図を待っています...";
+            waitMsg.style.color = "var(--green)";
           }
         });
 
@@ -944,6 +954,12 @@
 
       peer.on('error', err => {
         console.error("PeerJS Error:", err);
+        const waitMsg = document.getElementById('selectWaitMsg');
+        if (waitMsg) {
+          waitMsg.style.display = 'block';
+          waitMsg.textContent = `通信エラー (${err.type}): 再読み込みしてください`;
+          waitMsg.style.color = "var(--red)";
+        }
       });
     }
 
@@ -1305,7 +1321,7 @@
                 <div class="numpad-container">
                   <div class="numpad-display" id="numpadDisplay">${curDisplay}</div>
                   <div class="numpad-grid">
-                    ${[1,2,3,4,5,6,7,8,9].map(n => `<button type="button" class="numpad-btn" onclick="pressNumpad('\${n}')" ${line.step3.solved ? 'disabled' : ''}>${n}</button>`).join('')}
+                    ${[1,2,3,4,5,6,7,8,9].map(n => `<button type="button" class="numpad-btn" onclick="pressNumpad('${n}')" ${line.step3.solved ? 'disabled' : ''}>${n}</button>`).join('')}
                     <button type="button" class="numpad-btn" style="color:var(--red);" onclick="clearNumpad()" ${line.step3.solved ? 'disabled' : ''}>C</button>
                     <button type="button" class="numpad-btn" onclick="pressNumpad('0')" ${line.step3.solved ? 'disabled' : ''}>0</button>
                     <button type="button" class="numpad-btn" style="color:var(--yellow);" onclick="backspaceNumpad()" ${line.step3.solved ? 'disabled' : ''}>⌫</button>
@@ -1370,7 +1386,7 @@
                 <div class="selection-group">
                   <div class="selection-label">① 記号を選ぶ:</div>
                   <div class="selector-row">
-                    ${line.step3.optionsSym.map(s => `<button type="button" class="sym-btn \${curSym === s ? 'selected' : ''}" onclick="selectSym('${lineKey}', '${s}')" ${line.step3.solved ? 'disabled' : ''}>${s}</button>`).join('')}
+                    ${line.step3.optionsSym.map(s => `<button type="button" class="sym-btn ${curSym === s ? 'selected' : ''}" onclick="selectSym('${lineKey}', '${s}')" ${line.step3.solved ? 'disabled' : ''}>${s}</button>`).join('')}
                   </div>
                 </div>
                 <div class="selection-group">
@@ -1393,7 +1409,6 @@
       });
     }
 
-    // ロック解除処理
     function tryUnlock(btnEl, moduleId) {
       if (myRole === 'HOST') return;
       const box = btnEl.closest('.lock-box');
@@ -1621,7 +1636,6 @@
       document.getElementById('syncProgress').textContent = `${count} / 3 完了`;
     }
 
-    // 確実なデータ送信（未開通時はキューイング）
     function sendDataToHost(data) {
       data.senderRole = getActiveViewRole();
       if (myRole === 'HOST') {
