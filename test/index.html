@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>非同期コミュニケーション協力ゲーム α版</title>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <!-- 安定動作する 1.5.4 を指定 -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     :root {
       --bg: #0f172a;
@@ -246,7 +247,6 @@
       font-size: 0.85rem; color: var(--accent); display: flex; align-items: center; gap: 12px;
     }
 
-    /* テンキー */
     .numpad-container { display: flex; flex-direction: column; gap: 6px; width: 180px; }
     .numpad-display {
       background: #090d16; border: 1px solid var(--border); color: var(--yellow); font-family: monospace;
@@ -482,28 +482,30 @@
       PL3: { chatInput: "", memo: "", curSym: null, curCol: null }
     };
 
-    // ★ 学内Wi-FiやNAT/ファイアウォールを確実に突破するSTUN/TURN設定
-    const rtcConfig = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        {
-          urls: 'turn:openrelay.metered.ca:80',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        },
-        {
-          urls: 'turn:openrelay.metered.ca:443',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        },
-        {
-          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        }
-      ]
+    // ★ index_9.html と完全に一致させた確実な接続設定（STUN + OpenRelay TURN）
+    const peerConfig = {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          {
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          },
+          {
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          },
+          {
+            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          }
+        ]
+      },
+      debug: 1
     };
 
     const colors = [
@@ -663,60 +665,53 @@
       }
     });
 
-    // ホスト初期化（即時DataChannelバインド）
+    // ホスト初期化（index_9.html と同等の完全な open バインド構成）
     function initHostPeer() {
-      peer = new Peer({ config: rtcConfig });
+      peer = new Peer(peerConfig);
+
+      peer.on('error', err => {
+        hostLog(`【PeerJSエラー】${err.type}: ${err.message}`, 'error');
+      });
 
       peer.on('open', id => {
         hostLog(`ホスト起動完了。ID: ${id}`, 'info');
         const currentUrl = window.location.origin + window.location.pathname;
         const shareUrl = `${currentUrl}?host=${id}`;
         document.getElementById('shareUrlInput').value = shareUrl;
-      });
 
-      peer.on('error', err => {
-        hostLog(`【PeerJSエラー】${err.type}: ${err.message}`, 'error');
-      });
+        // open が成功した後に connection リスナーをバインド
+        peer.on('connection', conn => {
+          hostLog(`参加者接続要求を検知: ${conn.peer.slice(0, 8)}...`, 'info');
 
-      peer.on('connection', conn => {
-        hostLog(`参加者接続検知: ${conn.peer}`, 'info');
-        
-        // 接続配列に重複なく登録
-        if (!connections.some(c => c.peer === conn.peer)) {
-          connections.push(conn);
-        }
-
-        const markChannelOpen = () => {
-          hostLog(`参加者とのデータチャンネル開通: ${conn.peer}`, 'info');
-          try {
-            conn.send({ type: 'ROLE_TAKEN_SYNC', roleTaken: roleTaken });
-          } catch(e) {}
-        };
-
-        if (conn.open) {
-          markChannelOpen();
-        } else {
-          conn.on('open', markChannelOpen);
-        }
-
-        conn.on('data', data => {
-          if (data && data.type === 'PING') {
-            hostLog(`クライアント疎通確認受信 (PING): ${conn.peer}`, 'normal');
+          conn.on('open', () => {
+            if (!connections.some(c => c.peer === conn.peer)) {
+              connections.push(conn);
+            }
+            hostLog(`🎉 参加者とデータチャンネル開通: ${conn.peer.slice(0, 8)}...`, 'info');
             try {
               conn.send({ type: 'ROLE_TAKEN_SYNC', roleTaken: roleTaken });
             } catch(e) {}
-            return;
-          }
-          handleDataAsHost(conn, data);
-        });
+          });
 
-        conn.on('close', () => {
-          connections = connections.filter(c => c.peer !== conn.peer);
-          hostLog(`参加者切断: ${conn.peer}`, 'warn');
-        });
+          conn.on('data', data => {
+            if (data && data.type === 'PING') {
+              hostLog(`疎通確認 (PING) 受信: ${conn.peer.slice(0, 8)}`, 'normal');
+              try {
+                conn.send({ type: 'ROLE_TAKEN_SYNC', roleTaken: roleTaken });
+              } catch(e) {}
+              return;
+            }
+            handleDataAsHost(conn, data);
+          });
 
-        conn.on('error', err => {
-          hostLog(`接続エラー (${conn.peer}): ${err}`, 'error');
+          conn.on('close', () => {
+            connections = connections.filter(c => c.peer !== conn.peer);
+            hostLog(`参加者切断: ${conn.peer.slice(0, 8)}`, 'warn');
+          });
+
+          conn.on('error', err => {
+            hostLog(`接続エラー (${conn.peer.slice(0, 8)}): ${err}`, 'error');
+          });
         });
       });
     }
@@ -938,18 +933,20 @@
       hostTriggerTutorial();
     }
 
-    // クライアント側（serialization: 'json' + 接続リトライ + PING維持）
+    // クライアント側（index_9.html と完全に一致させた接続フロー）
     function initClientPreConnection() {
-      peer = new Peer({ config: rtcConfig });
+      peer = new Peer(peerConfig);
+
+      peer.on('error', err => {
+        console.error("PeerJS Error:", err);
+      });
 
       peer.on('open', id => {
-        // serialization: 'json' で Safari/Chrome 間の互換性を担保
-        hostConn = peer.connect(hostPeerId, { reliable: true, serialization: 'json' });
+        // reliable: true で確実にデータチャネルを開く
+        hostConn = peer.connect(hostPeerId, { reliable: true });
 
-        const setupClientEvents = () => {
-          // 即座にPINGを飛ばしてデータチャンネルを活性化
-          hostConn.send({ type: 'PING', senderPeer: id });
-
+        hostConn.on('open', () => {
+          // キューに溜まっているデータを送信
           while (outboundQueue.length > 0) {
             hostConn.send(outboundQueue.shift());
           }
@@ -958,13 +955,7 @@
             waitMsg.textContent = "ホストと接続完了。開始合図を待っています...";
             waitMsg.style.color = "var(--green)";
           }
-        };
-
-        if (hostConn.open) {
-          setupClientEvents();
-        } else {
-          hostConn.on('open', setupClientEvents);
-        }
+        });
 
         hostConn.on('data', data => {
           handleDataAsClient(data);
@@ -973,10 +964,6 @@
         hostConn.on('close', () => {
           alert("ホストとの接続が切断されました。");
         });
-      });
-
-      peer.on('error', err => {
-        console.error("PeerJS Error:", err);
       });
     }
 
