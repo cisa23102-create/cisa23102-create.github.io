@@ -29,7 +29,8 @@
     }
     .header-title { font-weight: bold; font-size: 1.1rem; color: var(--accent); }
     .status-group { display: flex; align-items: center; gap: 14px; font-size: 0.88rem; flex-wrap: wrap; }
-    .timer-badge { background: #000; padding: 4px 10px; border-radius: 4px; font-family: monospace; border: 1px solid var(--border); color: var(--yellow); font-weight: bold; }
+    .timer-badge { background: #000; padding: 4px 10px; border-radius: 4px; font-family: monospace; border: 1px solid var(--border); color: var(--text); font-weight: bold; font-size: 0.95rem; }
+    .timer-sec10 { color: var(--yellow); font-weight: bold; font-size: 1.05rem; text-decoration: underline; }
 
     button {
       background: var(--border); color: var(--text); border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: bold; transition: all 0.15s;
@@ -73,7 +74,7 @@
     .single-view { display: block !important; }
     @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
 
-    /* チャットエリア（全PL無制限スクロール） */
+    /* チャットエリア */
     .chat-section {
       background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px;
       display: flex; flex-direction: column; gap: 10px;
@@ -311,7 +312,8 @@
   <header>
     <div class="header-title" id="systemTitle">非同期コミュニケーション協力ゲーム α版</div>
     <div class="status-group">
-      <div>作戦時間: <span class="timer-badge" id="dayTimerBadge">計算中...</span></div>
+      <!-- リアルタイム時計表示 -->
+      <div>現在時刻: <span class="timer-badge"><span id="clockHourMin">--:--</span>:<span id="sec10" class="timer-sec10">-</span><span id="sec1">-</span></span></div>
       <div>進捗: <span id="syncProgress" style="font-weight:bold; color:var(--accent);">0 / 3 完了</span></div>
       <div id="roleIndicator" style="font-weight:bold; color:var(--yellow);">未確定</div>
       <button id="btnEnableNotify" onclick="requestNotificationPermission()" style="font-size:0.75rem; padding:4px 8px; background:#1e293b; border:1px solid var(--border);">🔔 通知</button>
@@ -354,7 +356,6 @@
 
       <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:14px;">
         <button id="btnHostStart" class="btn-success" style="font-size:1rem; padding:8px 22px;" onclick="hostStartGame()">本番ゲーム開始</button>
-        <span style="color:var(--text-muted); font-size:0.8rem;">※作戦時間: 07:00 〜 21:00</span>
       </div>
     </div>
   </div>
@@ -389,7 +390,6 @@
         <textarea id="pl2DedicatedTextarea" style="flex:1; width:100%; background:#090d16; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; font-size:0.95rem; line-height:1.6; resize:none;" placeholder="ここにメモを入力..." oninput="handlePl2MemoInput(this.value)"></textarea>
       </div>
 
-      <!-- チャット画面 -->
       <div class="chat-section" id="chatSection">
         <div class="chat-header">
           <span style="font-weight:bold; font-size:0.9rem;">チャット</span>
@@ -415,7 +415,6 @@
         </div>
       </div>
 
-      <!-- モジュール表示画面 -->
       <div class="modules-section" id="modulesSection">
         <div class="otp-display-panel" id="otpPanel" style="display:none;"></div>
         <div class="pl3-info-banner" id="pl3Banner" style="display:none;">
@@ -483,7 +482,6 @@
       PL3: { chatInput: "", memo: "", curSym: null, curCol: null }
     };
 
-    // ★ index_9.html と同一の安定TURN設定
     const peerConfig = {
       config: {
         iceServers: [
@@ -586,47 +584,32 @@
     let masterMessages = [];
     let displayedMessages = [];
 
-    // --- 日時・作戦時間タイマー（07:00 〜 21:00） ---
-    let dayTimerInterval = null;
+    // --- リアルタイム時計（HH:MM:SS） ---
+    let clockInterval = null;
 
-    function startDayTimer() {
-      if (dayTimerInterval) clearInterval(dayTimerInterval);
-      dayTimerInterval = setInterval(updateDayTimer, 1000);
-      updateDayTimer();
+    function startClock() {
+      if (clockInterval) clearInterval(clockInterval);
+      clockInterval = setInterval(updateClock, 1000);
+      updateClock();
     }
 
-    function updateDayTimer() {
+    function updateClock() {
       const now = new Date();
-      const h = now.getHours();
-      const m = now.getMinutes();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
       const s = now.getSeconds();
+      const sec10 = Math.floor(s / 10);
+      const sec1 = s % 10;
 
-      const badge = document.getElementById('dayTimerBadge');
+      const hmEl = document.getElementById('clockHourMin');
       const sec10El = document.getElementById('sec10');
       const sec1El = document.getElementById('sec1');
-      if (sec10El) sec10El.textContent = Math.floor(s / 10);
-      if (sec1El) sec1El.textContent = s % 10;
 
-      // 07:00 〜 21:00 の判定
-      const startMinutes = 7 * 60;
-      const endMinutes = 21 * 60;
-      const currentMinutes = h * 60 + m;
+      if (hmEl) hmEl.textContent = `${h}:${m}`;
+      if (sec10El) sec10El.textContent = sec10;
+      if (sec1El) sec1El.textContent = sec1;
 
-      if (currentMinutes < startMinutes) {
-        badge.textContent = "作戦開始前 (07:00開始)";
-        badge.style.color = "var(--text-muted)";
-      } else if (currentMinutes >= endMinutes) {
-        badge.textContent = "作戦時間終了 (21:00)";
-        badge.style.color = "var(--red)";
-      } else {
-        const remainingMinutes = endMinutes - currentMinutes;
-        const remH = Math.floor(remainingMinutes / 60);
-        const remM = remainingMinutes % 60;
-        badge.textContent = `21:00まで あと ${remH}時間${String(remM).padStart(2, '0')}分`;
-        badge.style.color = "var(--yellow)";
-      }
-
-      // OTPタイマー
+      // OTPタイマーカウントダウン（ホスト主導）
       if (myRole === 'HOST' && isGameRunning) {
         otpRemainingSec--;
         if (otpRemainingSec <= 0) {
@@ -659,12 +642,12 @@
 
     // --- 起動 ---
     window.addEventListener('DOMContentLoaded', () => {
-      startDayTimer();
-      loadLocalState(); // 再接続時のローカル復元
+      startClock();
+      loadLocalState();
 
       const params = new URLSearchParams(window.location.search);
       const hostParam = params.get('host');
-      const roleParam = params.get('role'); // 個別URLのPL指定
+      const roleParam = params.get('role');
 
       if (!hostParam) {
         myRole = 'HOST';
@@ -688,7 +671,7 @@
       }
     });
 
-    // ホスト初期化（個別URL生成）
+    // ホスト初期化
     function initHostPeer() {
       peer = new Peer(peerConfig);
 
@@ -772,7 +755,6 @@
         }
         hostLog(`【参加認識】${data.role} が専用URLでチェックイン`, 'info');
 
-        // ゲーム進行中なら最新データを即座に同期
         if (isGameRunning) {
           senderConn.send({
             type: 'START_GAME',
@@ -956,7 +938,6 @@
             waitMsg.style.color = "var(--green)";
           }
 
-          // 担当役職をホストへ通知
           if (myRole) {
             hostConn.send({ type: 'HELLO_ROLE', role: myRole });
           }
@@ -1001,7 +982,6 @@
       } else if (data.type === 'CHAT') {
         masterMessages.push(data.message);
         updateUnreadBadges();
-        // 通知発行
         sendBrowserNotification(data.message.sender, data.message.text);
       } else if (data.type === 'SOLVED') {
         if (data.line === 'C') lineCSolved = true;
@@ -1096,7 +1076,7 @@
       if (!plClientStates[myRole]) plClientStates[myRole] = {};
       Object.assign(plClientStates[myRole], partialUpdate);
 
-      saveLocalState(); // ローカルストレージに保持
+      saveLocalState();
 
       sendDataToHost({
         type: 'PL_FULL_STATE_SYNC',
@@ -1126,7 +1106,6 @@
       syncMyStateToHost({ memo: val });
     }
 
-    // ローカルストレージ永続化
     function saveLocalState() {
       try {
         localStorage.setItem('coop_game_memo', playerMemos[myRole] || "");
@@ -1144,7 +1123,6 @@
       } catch(e) {}
     }
 
-    // Web Notification API による通知
     function requestNotificationPermission() {
       if (!("Notification" in window)) {
         alert("お使いのブラウザは通知に対応していません");
@@ -1597,12 +1575,9 @@
     function renderChatLog() {
       const log = document.getElementById('chatLog');
       log.innerHTML = "";
-      const activeRole = getActiveViewRole();
-
-      // 全PL共通：全ログを無制限に表示
       masterMessages.forEach(m => {
         const div = document.createElement('div');
-        div.className = `chat-msg ${m.sender === activeRole ? 'mine' : ''}`;
+        div.className = `chat-msg ${m.sender === myRole ? 'mine' : ''}`;
         div.textContent = `${m.sender}: ${m.text}`;
         log.appendChild(div);
       });
@@ -1610,14 +1585,13 @@
     }
 
     function updateUnreadBadges() {
-      const activeRole = getActiveViewRole();
       const unreadCount = masterMessages.length - displayedMessages.length;
       const b = document.getElementById('chatUnreadCount');
       if (unreadCount > 0) {
         b.style.display = "inline";
         b.textContent = `+${unreadCount}`;
         const pl2B = document.getElementById('pl2ChatUnread');
-        if (pl2B && activeRole === 'PL2') pl2B.style.display = "inline";
+        if (pl2B && myRole === 'PL2') pl2B.style.display = "inline";
       } else {
         b.style.display = "none";
         const pl2B = document.getElementById('pl2ChatUnread');
@@ -1625,7 +1599,6 @@
       }
     }
 
-    // ★ PL3のクールダウン付きチャット更新処理
     function triggerChatRefresh() {
       if (myRole === 'PL3' && pl3CooldownRemaining > 0) return;
 
