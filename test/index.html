@@ -30,7 +30,7 @@
     .header-title { font-weight: bold; font-size: 1.1rem; color: var(--accent); }
     .status-group { display: flex; align-items: center; gap: 12px; font-size: 0.88rem; flex-wrap: wrap; }
     .timer-badge { background: #000; padding: 4px 10px; border-radius: 4px; font-family: monospace; border: 1px solid var(--border); color: var(--text); font-weight: bold; font-size: 0.95rem; }
-    .timer-sec10 { color: var(--yellow); font-weight: bold; font-size: 1.05rem; text-decoration: underline; }
+    .timer-min1 { color: var(--yellow); font-weight: bold; font-size: 1.1rem; text-decoration: underline; }
 
     button {
       background: var(--border); color: var(--text); border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: bold; transition: all 0.15s;
@@ -51,13 +51,17 @@
       background: #090d16; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;
       display: flex; flex-direction: column; gap: 10px;
     }
-    .url-row {
-      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    }
+    .url-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .url-label { width: 55px; font-weight: bold; font-size: 0.85rem; }
     .url-input-field {
       flex: 1; min-width: 260px; background: #1e293b; border: 1px solid var(--border); color: var(--text);
       padding: 6px 10px; border-radius: 4px; font-family: monospace; font-size: 0.8rem;
+    }
+
+    /* フェイズ案内バナー */
+    .phase-banner {
+      background: rgba(56, 189, 248, 0.15); border: 1px solid var(--accent); border-radius: 6px;
+      padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
     }
 
     /* PL2専用タブバー */
@@ -102,6 +106,7 @@
       border-left: 3px solid var(--accent); word-break: break-all;
     }
     .chat-msg.mine { border-left-color: var(--green); }
+    .chat-msg.system { border-left-color: var(--yellow); background: rgba(234, 179, 8, 0.15); font-weight: bold; }
     .chat-msg .sender { color: var(--text-muted); font-size: 0.75rem; margin-right: 4px; }
 
     .chat-input-area { display: flex; flex-direction: column; gap: 6px; }
@@ -109,6 +114,7 @@
     .chat-input {
       flex: 1; background: #090d16; border: 1px solid var(--border); color: var(--text); padding: 7px 10px; border-radius: 4px; font-size: 0.9rem;
     }
+    .chat-input:disabled { background: #1e293b; cursor: not-allowed; opacity: 0.6; }
     .send-btn { background: var(--accent); color: #000; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; }
     .char-counter { font-size: 0.75rem; color: var(--text-muted); text-align: right; }
 
@@ -119,7 +125,18 @@
     .memo-header { font-size: 0.8rem; font-weight: bold; color: var(--text-muted); display: flex; justify-content: space-between; }
     .memo-textarea {
       background: #090d16; border: 1px solid var(--border); color: var(--text); padding: 8px;
-      border-radius: 4px; font-size: 0.85rem; height: 80px; resize: none; width: 100%;
+      border-radius: 4px; font-size: 0.85rem; height: 100px; resize: vertical; width: 100%;
+    }
+
+    /* マニュアル表示セクション (準備フェイズ専用) */
+    .manual-card {
+      background: #090d16; border: 1px solid var(--accent); border-radius: 8px; padding: 14px; margin-bottom: 12px;
+    }
+    .manual-card-header {
+      font-weight: bold; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .manual-body {
+      font-size: 0.85rem; line-height: 1.6; color: var(--text); background: #1e293b; padding: 12px; border-radius: 6px;
     }
 
     /* モジュールエリア */
@@ -286,26 +303,32 @@
       background: var(--accent); color: #000; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; align-self: flex-start;
     }
 
-    .host-view-mode input,
-    .host-view-mode textarea {
-      pointer-events: none !important;
-      opacity: 0.85;
-      cursor: default !important;
-    }
-    .host-view-mode button:not(.tab-btn):not(.refresh-btn) {
+    /* ホスト閲覧モード時の入力無効化（URLコピーや管理ボタンは対象外） */
+    .host-view-mode #modulesContainer input,
+    .host-view-mode #modulesContainer button,
+    .host-view-mode #chatSection input,
+    .host-view-mode #chatSection button:not(.refresh-btn) {
       pointer-events: none !important;
       opacity: 0.65;
       cursor: not-allowed !important;
     }
 
     #hostFloatingConsole {
-      position: fixed; bottom: 12px; right: 12px; width: 450px; z-index: 9999;
+      position: fixed; bottom: 12px; right: 12px; width: 460px; z-index: 9999;
       background: rgba(9, 13, 22, 0.94); border: 2px solid var(--accent); border-radius: 8px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: none;
     }
     .console-header {
       background: #1e293b; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);
     }
+
+    /* アンケートフォーム */
+    .survey-group { margin-bottom: 16px; text-align: left; }
+    .survey-group label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 0.9rem; color: var(--accent); }
+    .survey-group textarea, .survey-group input[type="text"] {
+      width: 100%; background: #090d16; border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 4px; font-size: 0.85rem;
+    }
+    .rating-row { display: flex; gap: 12px; align-items: center; }
   </style>
 </head>
 <body>
@@ -314,7 +337,8 @@
   <header>
     <div class="header-title" id="systemTitle">非同期コミュニケーション協力ゲーム α版</div>
     <div class="status-group">
-      <div>現在時刻: <span class="timer-badge"><span id="clockHourMin">--:--</span>:<span id="sec10" class="timer-sec10">-</span><span id="sec1">-</span></span></div>
+      <!-- 分の1桁目(timer-min1)を強調表示 -->
+      <div>現在時刻: <span class="timer-badge"><span id="clockHour">--</span>:<span id="clockMin10">-</span><span id="clockMin1" class="timer-min1">-</span>:<span id="clockSec">--</span></span></div>
       <div>進捗: <span id="syncProgress" style="font-weight:bold; color:var(--accent);">0 / 3 完了</span></div>
       <div id="roleIndicator" style="font-weight:bold; color:var(--yellow);">未確定</div>
       <button id="btnEnableNotify" onclick="requestNotificationPermission()" style="font-size:0.75rem; padding:4px 8px; background:#1e293b; border:1px solid var(--border);">🔔 通知</button>
@@ -332,33 +356,42 @@
   <!-- 担当画面（ゲームメイン画面：起動直後からここに直行） -->
   <div id="view-game" class="view-container active" style="max-width:1100px;">
     
-    <!-- ホスト専用：常設URL配布バー（入力欄直接コピー対応） -->
+    <!-- ホスト専用：常設URL配布バー -->
     <div id="hostUrlBarArea" class="host-url-bar" style="display:none;">
       <div style="font-weight:bold; font-size:0.9rem; color:var(--accent); display:flex; justify-content:space-between; align-items:center;">
-        <span>🔗 各PL用URLの配布・コピー:</span>
-        <span style="font-size:0.75rem; color:var(--text-muted);">※クリックで全選択またはコピーボタンを押してください</span>
+        <span>🔗 各PL専用URLの配布・コピー:</span>
+        <button class="btn-primary" style="padding:2px 8px; font-size:0.75rem;" onclick="openDataHistoryModal()">📊 過去データ確認</button>
       </div>
 
       <div class="url-row">
         <span class="url-label" style="color:var(--accent);">PL1用:</span>
         <input type="text" id="url-PL1" class="url-input-field" readonly onclick="this.select()">
         <button class="btn-primary" style="padding:4px 10px; font-size:0.8rem;" onclick="copyRoleUrl('PL1')">コピー</button>
-        <span id="host-status-pl1" style="color:var(--red); font-size:0.8rem; font-weight:bold; width:60px;">未接続</span>
+        <span id="host-status-pl1" style="color:var(--red); font-size:0.8rem; font-weight:bold; width:65px;">未接続</span>
       </div>
 
       <div class="url-row">
         <span class="url-label" style="color:var(--yellow);">PL2用:</span>
         <input type="text" id="url-PL2" class="url-input-field" readonly onclick="this.select()">
         <button class="btn-primary" style="padding:4px 10px; font-size:0.8rem;" onclick="copyRoleUrl('PL2')">コピー</button>
-        <span id="host-status-pl2" style="color:var(--red); font-size:0.8rem; font-weight:bold; width:60px;">未接続</span>
+        <span id="host-status-pl2" style="color:var(--red); font-size:0.8rem; font-weight:bold; width:65px;">未接続</span>
       </div>
 
       <div class="url-row">
         <span class="url-label" style="color:var(--purple);">PL3用:</span>
         <input type="text" id="url-PL3" class="url-input-field" readonly onclick="this.select()">
         <button class="btn-primary" style="padding:4px 10px; font-size:0.8rem;" onclick="copyRoleUrl('PL3')">コピー</button>
-        <span id="host-status-pl3" style="color:var(--red); font-size:0.8rem; font-weight:bold; width:60px;">未接続</span>
+        <span id="host-status-pl3" style="color:var(--red); font-size:0.8rem; font-weight:bold; width:65px;">未接続</span>
       </div>
+    </div>
+
+    <!-- フェイズ進行案内バナー -->
+    <div id="phaseBanner" class="phase-banner">
+      <div>
+        <span style="font-weight:bold;" id="phaseTitle">【準備フェイズ (07:00〜)】</span>
+        <span id="phaseDesc" style="font-size:0.85rem; margin-left:8px;">配られた解除マニュアルを読み、メモを取りましょう。完了したら準備完了を押してください。</span>
+      </div>
+      <button id="btnReadyComplete" class="btn-success" onclick="clientSubmitReady()">準備完了</button>
     </div>
 
     <!-- PL2専用タブバー -->
@@ -379,7 +412,7 @@
         <div class="chat-header">
           <span style="font-weight:bold; font-size:0.95rem; color:var(--yellow);">📝 メモ画面</span>
         </div>
-        <textarea id="pl2DedicatedTextarea" style="flex:1; width:100%; background:#090d16; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; font-size:0.95rem; line-height:1.6; resize:none;" placeholder="ここにメモを入力..." oninput="handlePl2MemoInput(this.value)"></textarea>
+        <textarea id="pl2DedicatedTextarea" style="flex:1; width:100%; background:#090d16; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; font-size:0.95rem; line-height:1.6; resize:none;" placeholder="ここにメモを入力 (自動保存)..." oninput="handlePl2MemoInput(this.value)"></textarea>
       </div>
 
       <!-- チャット画面 -->
@@ -391,53 +424,104 @@
         <div class="rule-box">
           ・1〜40文字まで送信できます<br>
           ・<b>【🔄 更新】を押すと新しいメッセージを受信します</b><br>
-          <span id="chatRuleLineText" style="color:var(--yellow);">※PL3は更新ボタンに1分間のクールタイムがあります</span>
+          <span id="chatRuleLineText" style="color:var(--yellow);">※準備フェイズ中はチャット送信できません（メモのみ可）</span>
         </div>
         <div class="chat-log" id="chatLog"></div>
         <div class="chat-input-area">
           <div class="input-row">
-            <input type="text" id="chatInput" class="chat-input" placeholder="メッセージ (1~40字)" maxlength="40" oninput="handleChatInput(this.value)">
-            <button id="sendBtn" class="send-btn" onclick="sendMessage()">送信</button>
+            <input type="text" id="chatInput" class="chat-input" placeholder="解除フェイズ開始後に送信可能" maxlength="40" disabled oninput="handleChatInput(this.value)">
+            <button id="sendBtn" class="send-btn" disabled onclick="sendMessage()">送信</button>
           </div>
           <div class="char-counter"><span id="charCount">0</span>/40文字</div>
         </div>
 
         <div class="memo-section" id="chatBottomMemoSection">
-          <div class="memo-header"><span>📝 メモ帳</span><span style="font-size:0.75rem; color:var(--text-muted);">自動保存</span></div>
-          <textarea id="chatMemoTextarea" class="memo-textarea" placeholder="気付いたことや番号をメモ..." oninput="handlePlMemoInput(this.value)"></textarea>
+          <div class="memo-header"><span>📝 メモ帳 (いつでも入力可能・自動保存)</span></div>
+          <textarea id="chatMemoTextarea" class="memo-textarea" placeholder="気付いたことやマニュアルの情報をメモ..." oninput="handlePlMemoInput(this.value)"></textarea>
         </div>
       </div>
 
-      <!-- モジュール表示画面 -->
+      <!-- 右側：準備フェイズのマニュアル ＆ 解除フェイズのモジュール -->
       <div class="modules-section" id="modulesSection">
-        <div class="otp-display-panel" id="otpPanel" style="display:none;"></div>
-        <div class="pl3-info-banner" id="pl3Banner" style="display:none;">
-          <div><b>案内:</b> モジュールは1つ完了するごとに次が表示されます。</div>
-          <div>進捗: <span id="pl3ProgressText" style="color:var(--yellow); font-weight:bold;">1 / 3 表示中</span></div>
+        
+        <!-- 【準備フェイズ専用】解除マニュアル表示エリア -->
+        <div id="manualContainer">
+          <div style="font-weight:bold; color:var(--accent); margin-bottom:8px;">📖 あなたに配布された解除マニュアル (準備フェイズ限定表示):</div>
+          <div id="manualCardsList"></div>
         </div>
-        <div id="modulesContainer" style="display:flex; flex-direction:column; gap:12px;"></div>
+
+        <!-- 【解除フェイズ専用】モジュール表示エリア -->
+        <div id="activePlayContainer" style="display:none; flex-direction:column; gap:12px;">
+          <div class="otp-display-panel" id="otpPanel" style="display:none;"></div>
+          <div class="pl3-info-banner" id="pl3Banner" style="display:none;">
+            <div><b>案内:</b> モジュールは1つ完了するごとに次が表示されます。</div>
+            <div>進捗: <span id="pl3ProgressText" style="color:var(--yellow); font-weight:bold;">1 / 3 表示中</span></div>
+          </div>
+          <div id="modulesContainer" style="display:flex; flex-direction:column; gap:12px;"></div>
+        </div>
+
       </div>
     </div>
   </div>
 
-  <!-- 終了画面 -->
+  <!-- 画面2: ゲーム内アンケート画面 (21:00またはクリア時) -->
   <div id="view-result" class="view-container">
-    <div class="panel" style="text-align:center; padding:40px 20px;">
-      <h2 id="resultTitle" style="color:var(--accent); margin-bottom:12px;">実験終了</h2>
-      <p id="resultDesc" style="color:var(--text-muted); margin-bottom:24px;">タスクが終了しました。</p>
+    <div class="panel" style="max-width:700px; margin:0 auto; padding:24px;">
+      <h2 id="resultTitle" style="color:var(--accent); margin-bottom:8px; text-align:center;">タスク終了</h2>
+      <p id="resultDesc" style="color:var(--text-muted); margin-bottom:20px; text-align:center;">お疲れ様でした。以下のゲーム内アンケートにご回答ください。</p>
 
-      <div id="plResultAction" style="margin-bottom:20px;">
-        <a id="surveyLink" href="https://docs.google.com/forms" target="_blank" rel="noopener noreferrer">
-          <button class="btn-success" style="padding:12px 28px; font-size:1.1rem;">アンケートに回答する (Google Forms)</button>
-        </a>
+      <form id="gameSurveyForm" onsubmit="submitGameSurvey(event)">
+        <div class="survey-group">
+          <label>1. 今回のチームでのコミュニケーションの取りやすさはどうでしたか？ (1: 非常に難しかった 〜 5: 非常に円滑だった)</label>
+          <div class="rating-row">
+            <label><input type="radio" name="comm_rating" value="1" required> 1</label>
+            <label><input type="radio" name="comm_rating" value="2"> 2</label>
+            <label><input type="radio" name="comm_rating" value="3"> 3</label>
+            <label><input type="radio" name="comm_rating" value="4"> 4</label>
+            <label><input type="radio" name="comm_rating" value="5"> 5</label>
+          </div>
+        </div>
+
+        <div class="survey-group">
+          <label>2. 準備フェイズ（マニュアル読み込み・メモ）は役に立ちましたか？ (1: 全く役に立たなかった 〜 5: 大いに役立った)</label>
+          <div class="rating-row">
+            <label><input type="radio" name="prep_rating" value="1" required> 1</label>
+            <label><input type="radio" name="prep_rating" value="2"> 2</label>
+            <label><input type="radio" name="prep_rating" value="3"> 3</label>
+            <label><input type="radio" name="prep_rating" value="4"> 4</label>
+            <label><input type="radio" name="prep_rating" value="5"> 5</label>
+          </div>
+        </div>
+
+        <div class="survey-group">
+          <label>3. 連携で難しかった点、工夫した点があればご記入ください。</label>
+          <textarea name="free_feedback" rows="4" placeholder="（例: メモの残し方、チャットの返信タイミングなど）"></textarea>
+        </div>
+
+        <div style="text-align:center; margin-top:20px;">
+          <button type="submit" class="btn-success" style="padding:10px 28px; font-size:1rem;">アンケートを送信して完了</button>
+        </div>
+      </form>
+
+      <div id="postSurveySection" style="display:none; margin-top:24px; border-top:1px solid var(--border); padding-top:20px; text-align:center;">
+        <h3 style="color:var(--green); margin-bottom:12px;">✅ 回答を保存しました。ご協力ありがとうございました！</h3>
+        <div id="testplayUrlList" style="text-align:left; background:#090d16; padding:12px; border-radius:6px; font-size:0.85rem; margin-bottom:14px;"></div>
+        <button class="btn-primary" onclick="location.reload()">トップへ戻る</button>
       </div>
+    </div>
+  </div>
 
-      <div id="hostResultControls" style="display:none; border-top:1px solid var(--border); padding-top:20px; margin-top:20px;">
-        <h4 style="color:var(--yellow); margin-bottom:12px;">ホスト制御パネル</h4>
-        <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
-          <button class="btn-primary" onclick="hostRestartGame()">もう一度最初から開始</button>
+  <!-- 履歴データ確認モーダル (ホスト用) -->
+  <div id="historyModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; padding:20px; overflow-y:auto;">
+    <div style="max-width:850px; margin:20px auto; background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="color:var(--accent);">📊 実験・セッション履歴データ</h3>
+        <div>
+          <button class="btn-primary" onclick="exportHistoryJson()">JSONダウンロード</button>
+          <button onclick="closeDataHistoryModal()" style="margin-left:8px;">閉じる</button>
         </div>
       </div>
+      <div id="historyDataList" style="display:flex; flex-direction:column; gap:12px; font-size:0.85rem;"></div>
     </div>
   </div>
 
@@ -456,20 +540,35 @@
   </div>
 
   <script>
+    // --- グローバル状態 ---
     let myRole = null;
     let hostViewingRole = 'PL1';
     let hostPeerId = null;
     let peer = null;
     let connections = [];
     let hostConn = null;
-    let isGameRunning = true;
     let outboundQueue = [];
+
+    // フェイズ管理: 'PREPARE' (準備), 'DEFUSE' (解除), 'FINISHED' (終了・アンケート)
+    let currentPhase = 'PREPARE';
+    let readyStatus = { PL1: false, PL2: false, PL3: false };
 
     let pl3CooldownTimer = null;
     let pl3CooldownRemaining = 0;
 
     let roleConnected = { PL1: false, PL2: false, PL3: false };
     let generatedUrls = { PL1: "", PL2: "", PL3: "" };
+
+    // セッションログ記録用
+    let currentSessionData = {
+      sessionId: "session_" + Date.now(),
+      startTime: new Date().toISOString(),
+      endTime: null,
+      clearStatus: "IN_PROGRESS",
+      chatLog: [],
+      errorLogs: [],
+      surveys: []
+    };
 
     let plClientStates = {
       PL1: { chatInput: "", memo: "", b2Input: "", b2Key: null },
@@ -518,7 +617,7 @@
     };
 
     let bCurrentSignal = "82";
-    let bParityTarget = "even";
+    let bParityTarget = "even"; // 分の1桁目が偶数か奇数か
     let bTargetPasscode = "729";
 
     const allNums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => Math.random() - 0.5);
@@ -542,13 +641,13 @@
         type: "numeric_pass", name: "ラインB", tagClass: "pipe-B",
         step1: { rawCode: bCurrentSignal },
         step2: {
-          convert: (val, sec10) => {
+          convert: (val, min1) => {
             const cleanVal = (val || "").trim();
-            if (cleanVal !== bCurrentSignal) return { success: false, reason: "数字不一致" };
-            const isEven = (sec10 % 2 === 0);
+            if (cleanVal !== bCurrentSignal) return { success: false };
+            const isEven = (min1 % 2 === 0);
             const expectedEven = (bParityTarget === "even");
             if (isEven !== expectedEven) {
-              return { success: false, reason: `秒数条件不一致 (十の位:${sec10}は${isEven ? '偶数' : '奇数'} / 期待:${expectedEven ? '偶数' : '奇数'})` };
+              return { success: false };
             }
             return { success: true, key: bTargetPasscode };
           }
@@ -569,6 +668,46 @@
     };
     let pl3ShuffledOrder = ["A", "B", "C"].sort(() => Math.random() - 0.5);
 
+    // 解除マニュアルのテキスト定義 (準備フェイズで閲覧可能)
+    const manualDatabase = {
+      "A-1": {
+        title: "ラインA: 隠し記号検出マニュアル",
+        content: "センサー領域にカーソルを乗せる（スマホの場合は長押しタッチ）と、隠された『入力記号』と『色』が浮き上がります。この情報を担当者に正確に伝達してください。"
+      },
+      "A-2": {
+        title: "ラインA: 記号・色変換マトリクスマニュアル",
+        content: "検出された『入力記号』と『色』が交差するマス目を確認します。そこに示された新しい『出力記号』と『色』の組み合わせが最終的な解除コードとなります。"
+      },
+      "A-3": {
+        title: "ラインA: 最終認証決定マニュアル",
+        content: "対応表から導き出された正しい『記号』と『色』の両方を選択し、決定ボタンを押して認証を完了させてください。"
+      },
+      "B-1": {
+        title: "ラインB: シグナル検出マニュアル",
+        content: "センサーを起動して隠された2桁の数字シグナルを読み取ります。パスワード変換担当者へこの数字を伝えてください。"
+      },
+      "B-2": {
+        title: "ラインB: 時刻同期パスワード出力マニュアル",
+        content: "検出された数字を入力し、指定された時刻（分の1の位が奇数または偶数）の瞬間にボタンを押すと、3桁の解除パスワードが出力されます。失敗時は『ERROR』とだけ表示されます。"
+      },
+      "B-3": {
+        title: "ラインB: テンキー認証マニュアル",
+        content: "B-2で出力された3桁のパスワードをテンキーで入力し、決定ボタンを押してロックを解除してください。"
+      },
+      "C-1": {
+        title: "ラインC: 順次起動マニュアル (前半)",
+        content: "全プレイヤーの手元に1〜12の番号ボタンが4個ずつ分散して配られています。1から順に小さい順で押していく必要があります。"
+      },
+      "C-2": {
+        title: "ラインC: 順次起動マニュアル (中盤)",
+        content: "現在押すべき番号が自分の手元にある場合のみ押してください。順番を間違えた場合は最初からやり直しとなり、全員のボタンが再シャッフルされます。"
+      },
+      "C-3": {
+        title: "ラインC: 順次起動マニュアル (終盤)",
+        content: "チャット等で『今何番か』を確認し合いながら進めてください。12番までミスなく押し終えるとラインCの解除が完了します。"
+      }
+    };
+
     let pl2ActiveTab = "module";
     let selectedInputs = { A: { sym: null, col: null } };
     let b2InputVal = "";
@@ -579,7 +718,7 @@
     let masterMessages = [];
     let displayedMessages = [];
 
-    // --- リアルタイム時計（HH:MM:SS） ---
+    // --- 時計更新（分の1桁目を強調） ---
     let clockInterval = null;
 
     function startClock() {
@@ -592,20 +731,23 @@
       const now = new Date();
       const h = String(now.getHours()).padStart(2, '0');
       const m = String(now.getMinutes()).padStart(2, '0');
-      const s = now.getSeconds();
-      const sec10 = Math.floor(s / 10);
-      const sec1 = s % 10;
+      const s = String(now.getSeconds()).padStart(2, '0');
+      
+      const min10 = m.charAt(0);
+      const min1 = m.charAt(1);
 
-      const hmEl = document.getElementById('clockHourMin');
-      const sec10El = document.getElementById('sec10');
-      const sec1El = document.getElementById('sec1');
+      document.getElementById('clockHour').textContent = h;
+      document.getElementById('clockMin10').textContent = min10;
+      document.getElementById('clockMin1').textContent = min1;
+      document.getElementById('clockSec').textContent = s;
 
-      if (hmEl) hmEl.textContent = `${h}:${m}`;
-      if (sec10El) sec10El.textContent = sec10;
-      if (sec1El) sec1El.textContent = sec1;
+      // 21:00強制終了チェック
+      if (now.getHours() >= 21 && currentPhase !== 'FINISHED') {
+        endGame("TIME_UP_21");
+      }
 
       // OTPタイマー
-      if (myRole === 'HOST' && isGameRunning) {
+      if (myRole === 'HOST' && currentPhase === 'DEFUSE') {
         otpRemainingSec--;
         if (otpRemainingSec <= 0) {
           refreshOtpPasscodes();
@@ -718,7 +860,7 @@
       });
     }
 
-    // ★ どんな環境でも確実にコピーできるハイブリッドコピー関数
+    // ハイブリッドコピー関数 (確実にクリップボードにコピー)
     function copyRoleUrl(role) {
       const input = document.getElementById(`url-${role}`);
       const textToCopy = input ? input.value : generatedUrls[role];
@@ -733,7 +875,6 @@
         input.setSelectionRange(0, 99999);
       }
 
-      // 1. まず標準の Clipboard API を試行
       if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(textToCopy).then(() => {
           alert(`【コピー成功】\n${role} 用のURLをコピーしました！`);
@@ -761,10 +902,10 @@
         if (successful) {
           alert(`【コピー成功】\n${role} 用のURLをコピーしました！`);
         } else {
-          prompt(`お使いのブラウザでは自動コピーがブロックされました。\n以下のURLを手動でコピーしてください:`, text);
+          prompt(`手動でURLをコピーしてください:`, text);
         }
       } catch (err) {
-        prompt(`お使いのブラウザでは自動コピーがブロックされました。\n以下のURLを手動でコピーしてください:`, text);
+        prompt(`手動でURLをコピーしてください:`, text);
       }
     }
 
@@ -793,6 +934,7 @@
       area.style.display = (area.style.display === 'none') ? 'block' : 'none';
     }
 
+    // ホストの受信・進行管理
     function handleDataAsHost(senderConn, data) {
       if (data.type === 'HELLO_ROLE') {
         roleConnected[data.role] = true;
@@ -804,7 +946,9 @@
         hostLog(`【参加認識】${data.role} が担当画面にチェックイン`, 'info');
 
         senderConn.send({
-          type: 'START_GAME',
+          type: 'SYNC_CURRENT_STATE',
+          phase: currentPhase,
+          readyStatus: readyStatus,
           passcodes: pl2Passcodes,
           lineCButtons: lineCButtonsByRole,
           bPass: bTargetPasscode,
@@ -817,6 +961,23 @@
             messages: masterMessages
           }
         });
+      } else if (data.type === 'READY_COMPLETE') {
+        readyStatus[data.role] = true;
+        hostLog(`【準備完了】${data.role} が準備完了ボタンを押下`, 'info');
+        
+        // チャットに自動送信
+        const sysMsg = { sender: "SYSTEM", text: `📢 ${data.role} が準備完了しました。`, isSystem: true };
+        masterMessages.push(sysMsg);
+        currentSessionData.chatLog.push(sysMsg);
+        broadcastToClients({ type: 'CHAT', message: sysMsg });
+        renderChatLog();
+
+        // 全員完了判定
+        if (readyStatus.PL1 && readyStatus.PL2 && readyStatus.PL3) {
+          transitionToDefusePhase();
+        } else {
+          broadcastToClients({ type: 'UPDATE_READY_STATUS', readyStatus: readyStatus });
+        }
       } else if (data.type === 'SOLVED') {
         if (data.line === 'C') lineCSolved = true;
         else pipelineData[data.line].step3.solved = true;
@@ -827,6 +988,7 @@
       } else if (data.type === 'CHAT') {
         hostLog(`【チャット】[${data.message.sender}] "${data.message.text}"`, 'chat');
         masterMessages.push(data.message);
+        currentSessionData.chatLog.push(data.message);
         broadcastToClients(data);
         renderChatLog();
       } else if (data.type === 'SEQ_UPDATE') {
@@ -842,6 +1004,7 @@
         renderModules();
       } else if (data.type === 'LOG_ERROR') {
         hostLog(`【間違えた入力】[${data.senderRole}] ${data.detail}`, 'error');
+        currentSessionData.errorLogs.push({ time: new Date().toLocaleTimeString(), sender: data.senderRole, detail: data.detail });
       } else if (data.type === 'PL_UNLOCK_SUCCESS') {
         pl2Unlocked[data.moduleId] = true;
         hostLog(`【ロック解除】[${data.role}] がモジュール [${data.moduleId}] の画面ロック解除に成功`, 'info');
@@ -855,7 +1018,69 @@
         if (myRole === 'HOST' && hostViewingRole === data.role) {
           applyPlStateToHostScreen(data.role, data.state);
         }
+      } else if (data.type === 'SUBMIT_SURVEY') {
+        currentSessionData.surveys.push({ role: data.role, answers: data.answers });
+        saveSessionToStorage();
+        hostLog(`【アンケート回答受信】${data.role} より`, 'info');
       }
+    }
+
+    // 解除フェイズへの移行処理
+    function transitionToDefusePhase() {
+      currentPhase = 'DEFUSE';
+      hostLog("🚀 全員準備完了！【解除フェイズ】が開始されました。（マニュアル非表示・モジュール開放）", 'info');
+      
+      const startMsg = { sender: "SYSTEM", text: "🚀 全員が準備完了しました。解除フェイズを開始します！", isSystem: true };
+      masterMessages.push(startMsg);
+      currentSessionData.chatLog.push(startMsg);
+
+      broadcastToClients({
+        type: 'PHASE_CHANGE',
+        phase: 'DEFUSE',
+        bParity: bParityTarget,
+        message: startMsg
+      });
+
+      applyPhaseUI();
+      renderChatLog();
+    }
+
+    function applyPhaseUI() {
+      const bannerTitle = document.getElementById('phaseTitle');
+      const bannerDesc = document.getElementById('phaseDesc');
+      const readyBtn = document.getElementById('btnReadyComplete');
+      const chatIn = document.getElementById('chatInput');
+      const sendBtn = document.getElementById('sendBtn');
+      const manualArea = document.getElementById('manualContainer');
+      const playArea = document.getElementById('activePlayContainer');
+
+      if (currentPhase === 'PREPARE') {
+        bannerTitle.textContent = "【準備フェイズ (07:00〜)】";
+        bannerDesc.textContent = "配布マニュアルを読みメモを取りましょう。完了したら準備完了を押してください。";
+        readyBtn.style.display = "inline-block";
+        chatIn.disabled = true;
+        chatIn.placeholder = "解除フェイズ開始後に送信可能";
+        sendBtn.disabled = true;
+        manualArea.style.display = "block";
+        playArea.style.display = "none";
+      } else if (currentPhase === 'DEFUSE') {
+        const parityText = (bParityTarget === "even") ? "偶数" : "奇数";
+        bannerTitle.textContent = "【解除フェイズ 進行中】";
+        bannerDesc.textContent = `マニュアルは非表示になりました。メモを活用して解除してください。(モジュールB条件: 分の1桁目が『${parityText}』)`;
+        readyBtn.style.display = "none";
+        chatIn.disabled = false;
+        chatIn.placeholder = "メッセージ (1~40字)";
+        sendBtn.disabled = false;
+        manualArea.style.display = "none";
+        playArea.style.display = "flex";
+      }
+    }
+
+    function clientSubmitReady() {
+      const btn = document.getElementById('btnReadyComplete');
+      btn.disabled = true;
+      btn.textContent = "準備完了済 (他PL待機中...)";
+      sendDataToHost({ type: 'READY_COMPLETE', role: myRole });
     }
 
     function applyPlStateToHostScreen(role, state) {
@@ -918,11 +1143,16 @@
     }
 
     function endGame(reason) {
-      isGameRunning = false;
+      currentPhase = 'FINISHED';
+      currentSessionData.endTime = new Date().toISOString();
+      currentSessionData.clearStatus = (reason === "CLEAR") ? "SUCCESS" : "TIMEOUT_21";
+      saveSessionToStorage();
+
       if (myRole === 'HOST') {
         broadcastToClients({ type: 'END_GAME', reason: reason });
         document.getElementById('hostResultControls').style.display = 'block';
         if (reason === "CLEAR") hostLog("【実験クリア】全ラインが解除されました！", 'info');
+        else hostLog("【作戦時間終了】21:00を迎えました。アンケートへ移行します。", 'warn');
       }
 
       const title = document.getElementById('resultTitle');
@@ -930,29 +1160,102 @@
       if (reason === "CLEAR") {
         title.textContent = "🎉 全ライン解除成功！";
         title.style.color = "var(--green)";
-        desc.textContent = "お疲れ様でした。全てのモジュールが解除されました。";
+        desc.textContent = "お疲れ様でした。全てのモジュールが解除されました。ゲーム内アンケートにご協力ください。";
+      } else {
+        title.textContent = "⌛ 作戦終了 (21:00)";
+        title.style.color = "var(--red)";
+        desc.textContent = "本日の作戦時間（21:00）が終了しました。ゲーム内アンケートにご協力ください。";
       }
       setView('view-result');
     }
 
-    function hostRestartGame() {
-      pipelineData.A.step3.solved = false;
-      pipelineData.B.step3.solved = false;
-      lineCSolved = false;
-      currentTargetNumC = 1;
-      bTargetPasscode = Math.floor(100 + Math.random() * 900).toString();
-      bParityTarget = (Math.random() < 0.5) ? "even" : "odd";
-      isGameRunning = true;
+    // アンケート送信処理
+    function submitGameSurvey(e) {
+      e.preventDefault();
+      const form = e.target;
+      const answers = {
+        commRating: form.comm_rating.value,
+        prepRating: form.prep_rating.value,
+        feedback: form.free_feedback.value
+      };
 
-      broadcastToClients({
-        type: 'START_GAME',
-        passcodes: pl2Passcodes,
-        lineCButtons: lineCButtonsByRole,
-        bPass: bTargetPasscode,
-        bParity: bParityTarget
+      if (myRole === 'HOST') {
+        currentSessionData.surveys.push({ role: 'HOST', answers: answers });
+        saveSessionToStorage();
+      } else {
+        sendDataToHost({ type: 'SUBMIT_SURVEY', role: myRole, answers: answers });
+      }
+
+      form.style.display = "none";
+      const postSec = document.getElementById('postSurveySection');
+      postSec.style.display = "block";
+
+      // テストプレイ用URL一覧表示
+      const urlBox = document.getElementById('testplayUrlList');
+      if (generatedUrls.PL1) {
+        urlBox.innerHTML = `
+          <b>テストプレイ用 各PL URL一覧:</b><br>
+          PL1: <a href="${generatedUrls.PL1}" target="_blank" style="color:var(--accent);">${generatedUrls.PL1}</a><br>
+          PL2: <a href="${generatedUrls.PL2}" target="_blank" style="color:var(--yellow);">${generatedUrls.PL2}</a><br>
+          PL3: <a href="${generatedUrls.PL3}" target="_blank" style="color:var(--purple);">${generatedUrls.PL3}</a>
+        `;
+      }
+    }
+
+    // セッションデータ保存 (ローカルストレージ)
+    function saveSessionToStorage() {
+      try {
+        let history = JSON.parse(localStorage.getItem('coop_game_history') || "[]");
+        const idx = history.findIndex(s => s.sessionId === currentSessionData.sessionId);
+        if (idx >= 0) history[idx] = currentSessionData;
+        else history.push(currentSessionData);
+        localStorage.setItem('coop_game_history', JSON.stringify(history));
+      } catch(e) {
+        console.error("Storage save error:", e);
+      }
+    }
+
+    function openDataHistoryModal() {
+      const modal = document.getElementById('historyModal');
+      const list = document.getElementById('historyDataList');
+      modal.style.display = "block";
+      list.innerHTML = "";
+
+      const history = JSON.parse(localStorage.getItem('coop_game_history') || "[]");
+      if (history.length === 0) {
+        list.innerHTML = "<div style='color:var(--text-muted);'>まだ保存されたプレイ履歴がありません。</div>";
+        return;
+      }
+
+      history.reverse().forEach((s, idx) => {
+        const item = document.createElement('div');
+        item.style.background = "#090d16";
+        item.style.border = "1px solid var(--border)";
+        item.style.borderRadius = "6px";
+        item.style.padding = "10px";
+        item.innerHTML = `
+          <div style="font-weight:bold; color:var(--accent);">第 ${history.length - idx} 回プレイ [${s.sessionId}]</div>
+          <div>結果: <b style="color:${s.clearStatus === 'SUCCESS' ? 'var(--green)' : 'var(--yellow)'};">${s.clearStatus}</b></div>
+          <div>開始: ${s.startTime} / 終了: ${s.endTime || '進行中'}</div>
+          <div>チャット件数: ${s.chatLog.length} 件 / エラー件数: ${s.errorLogs.length} 件</div>
+          <div>アンケート回答数: ${s.surveys.length} 件</div>
+        `;
+        list.appendChild(item);
       });
-      setView('view-game');
-      initGameView();
+    }
+
+    function closeDataHistoryModal() {
+      document.getElementById('historyModal').style.display = "none";
+    }
+
+    function exportHistoryJson() {
+      const historyStr = localStorage.getItem('coop_game_history') || "[]";
+      const blob = new Blob([historyStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `coop_game_history_${Date.now()}.json`;
+      a.click();
     }
 
     // クライアント初期化
@@ -970,7 +1273,6 @@
           if (myRole) {
             hostConn.send({ type: 'HELLO_ROLE', role: myRole });
           }
-
           while (outboundQueue.length > 0) {
             hostConn.send(outboundQueue.shift());
           }
@@ -981,13 +1283,15 @@
         });
 
         hostConn.on('close', () => {
-          console.warn("ホスト切断検知。ローカル状態で継続中");
+          console.warn("ホスト切断検知");
         });
       });
     }
 
     function handleDataAsClient(data) {
-      if (data.type === 'START_GAME') {
+      if (data.type === 'SYNC_CURRENT_STATE') {
+        currentPhase = data.phase;
+        readyStatus = data.readyStatus;
         pl2Passcodes = data.passcodes;
         lineCButtonsByRole = data.lineCButtons;
         bTargetPasscode = data.bPass;
@@ -1001,8 +1305,16 @@
           masterMessages = data.progress.messages || [];
         }
 
-        isGameRunning = true;
+        applyPhaseUI();
         initGameView();
+      } else if (data.type === 'PHASE_CHANGE') {
+        currentPhase = data.phase;
+        bParityTarget = data.bParity;
+        if (data.message) masterMessages.push(data.message);
+        applyPhaseUI();
+        initGameView();
+      } else if (data.type === 'UPDATE_READY_STATUS') {
+        readyStatus = data.readyStatus;
       } else if (data.type === 'TIMER_SYNC') {
         otpRemainingSec = data.otpSec;
         pl2Passcodes = data.passcodes;
@@ -1033,9 +1345,37 @@
 
     function initGameView() {
       applyLayoutByRole();
+      renderManuals();
       renderOtpPanel();
       renderModules();
       renderChatLog();
+    }
+
+    // マニュアル描画 (各自の役職に応じた3つのマニュアルを表示)
+    function renderManuals() {
+      const container = document.getElementById('manualCardsList');
+      if (!container) return;
+      container.innerHTML = "";
+
+      const activeRole = getActiveViewRole();
+      const myTasks = roleAssignments[activeRole] || [];
+
+      myTasks.forEach(task => {
+        const modKey = `${task.line}-${task.step}`;
+        const manual = manualDatabase[modKey];
+        if (manual) {
+          const card = document.createElement('div');
+          card.className = "manual-card";
+          card.innerHTML = `
+            <div class="manual-card-header">
+              <span>【${modKey}】 ${manual.title}</span>
+              <span style="font-size:0.75rem; color:var(--text-muted);">マニュアル</span>
+            </div>
+            <div class="manual-body">${manual.content}</div>
+          `;
+          container.appendChild(card);
+        }
+      });
     }
 
     function getActiveViewRole() {
@@ -1059,7 +1399,7 @@
         switchPl2Tab(pl2ActiveTab);
       } else if (activeRole === "PL3") {
         pl2Bar.style.display = "none";
-        pl3Banner.style.display = (myRole === 'HOST') ? "none" : "flex";
+        pl3Banner.style.display = (myRole === 'HOST' || currentPhase === 'PREPARE') ? "none" : "flex";
         mainGrid.className = "main-grid";
         modulesSection.style.display = "flex";
         chatSection.style.display = "flex";
@@ -1092,10 +1432,6 @@
       chatSection.style.display = (tab === 'chat') ? "flex" : "none";
       pl2MemoSection.style.display = (tab === 'memo') ? "flex" : "none";
 
-      modulesSection.classList.toggle('active-tab-glow', tab === 'module');
-      chatSection.classList.toggle('active-tab-glow', tab === 'chat');
-      pl2MemoSection.classList.toggle('active-tab-glow', tab === 'memo');
-
       syncMyStateToHost({ activeTab: tab });
     }
 
@@ -1116,6 +1452,7 @@
     function sendErrorLog(detail) {
       if (myRole === 'HOST') {
         hostLog(`【間違えた入力】[HOST試行] ${detail}`, 'error');
+        currentSessionData.errorLogs.push({ time: new Date().toLocaleTimeString(), sender: 'HOST', detail: detail });
       } else {
         sendDataToHost({ type: 'LOG_ERROR', senderRole: myRole, detail: detail });
       }
@@ -1158,7 +1495,7 @@
       }
       Notification.requestPermission().then(permission => {
         if (permission === "granted") {
-          alert("通知が許可されました！チャット受信時に通知されます。");
+          alert("通知が許可されました！メッセージ受信時に通知されます。");
         }
       });
     }
@@ -1166,10 +1503,7 @@
     function sendBrowserNotification(sender, text) {
       if (sender === myRole) return;
       if ("Notification" in window && Notification.permission === "granted") {
-        new Notification(`💬 [${sender}] からメッセージ`, {
-          body: text,
-          icon: ""
-        });
+        new Notification(`💬 [${sender}] からメッセージ`, { body: text });
       }
     }
 
@@ -1211,11 +1545,8 @@
       let solvedCount = 0;
       for (const lineKey of pl3ShuffledOrder) {
         const isSolved = (lineKey === 'C' ? lineCSolved : pipelineData[lineKey].step3.solved);
-        if (isSolved) {
-          solvedCount++;
-        } else if (!pl3ActiveLine) {
-          pl3ActiveLine = lineKey;
-        }
+        if (isSolved) solvedCount++;
+        else if (!pl3ActiveLine) pl3ActiveLine = lineKey;
       }
 
       if (activeRole === "PL3") {
@@ -1334,16 +1665,16 @@
                   <span style="font-size:0.85rem; color:var(--text-muted);">出たパスワード:</span>
                   <div class="key-result-badge" id="b2ResultBadge">${b2GeneratedKey || "---"}</div>
                 </div>
-                <div id="b2Msg" style="font-size:0.75rem; color:${b2GeneratedKey ? 'var(--green)' : 'var(--text-muted)'};"></div>
+                <div id="b2Msg" style="font-size:0.75rem;"></div>
               </div>
             `;
           } else if (stepNum === 3) {
-            const parityText = (bParityTarget === "even") ? "偶数（0, 2, 4）" : "奇数（1, 3, 5）";
+            const parityText = (bParityTarget === "even") ? "偶数" : "奇数";
             const curDisplay = numpadInputB || "---";
             stepContent = `
               <div class="b3-rule-banner">
                 <b>💡 注記:</b><br>
-                B-2でパスワードを出すボタンは、<b>現在時刻の秒の十の位が「${parityText}」の瞬間</b>にしか動作しません。
+                B-2でパスワードを出すボタンは、<b>現在時刻の分の1桁目が「${parityText}」の瞬間</b>にしか動作しません。
               </div>
               <div class="step3-box" style="flex-direction:row; align-items:flex-start; gap:16px;">
                 <div class="numpad-container">
@@ -1451,8 +1782,8 @@
         syncMyStateToHost({ unlocked: pl2Unlocked });
         sendDataToHost({ type: 'PL_UNLOCK_SUCCESS', role: myRole, moduleId: moduleId });
       } else {
-        err.textContent = "番号が違うか、期限切れです";
-        sendErrorLog(`モジュール ${moduleId} のロック解除失敗 (入力値: "${val}" / 正解PASS: "${expected}")`);
+        err.textContent = "エラー";
+        sendErrorLog(`モジュール ${moduleId} ロック解除エラー`);
       }
     }
 
@@ -1461,13 +1792,14 @@
       syncMyStateToHost({ b2Input: val });
     }
 
+    // モジュールB-2 変換処理 (分の1桁目で判定 ＆ エラー時はERRORのみ表示)
     function executeB2Convert() {
       if (myRole === 'HOST') return;
       const input = document.getElementById('b2Input');
       b2InputVal = input ? input.value.trim() : "";
       const now = new Date();
-      const sec10 = Math.floor(now.getSeconds() / 10);
-      const res = pipelineData.B.step2.convert(b2InputVal, sec10);
+      const min1 = parseInt(String(now.getMinutes()).slice(-1), 10);
+      const res = pipelineData.B.step2.convert(b2InputVal, min1);
 
       const badge = document.getElementById('b2ResultBadge');
       const msg = document.getElementById('b2Msg');
@@ -1484,10 +1816,10 @@
         badge.textContent = "ERROR";
         badge.style.color = "var(--red)";
         badge.style.borderColor = "var(--red)";
-        msg.textContent = res.reason;
+        msg.textContent = "エラー";
         msg.style.color = "var(--red)";
         syncMyStateToHost({ b2Key: "ERROR" });
-        sendErrorLog(`[B-2 変換失敗] 入力値: "${b2InputVal}", 原因: ${res.reason} (秒の十の位: ${sec10})`);
+        sendErrorLog(`[B-2] パスワード出力エラー`);
       }
     }
 
@@ -1511,7 +1843,7 @@
       const resSpan = document.getElementById(`result-${lineKey}`);
 
       if (!cur.sym || !cur.col) {
-        resSpan.innerHTML = "<span style='color:var(--red);'>記号と色の両方を選んでください</span>";
+        resSpan.innerHTML = "<span style='color:var(--red);'>エラー</span>";
         return;
       }
       if (cur.sym === line.step3.targetSym && cur.col === line.step3.targetCol) {
@@ -1520,8 +1852,8 @@
         sendDataToHost({ type: 'SOLVED', line: lineKey });
         renderModules();
       } else {
-        resSpan.innerHTML = "<span style='color:var(--red);'>違います</span>";
-        sendErrorLog(`[ライン${lineKey} 選択ミス] 選択: (${cur.sym}, ${cur.col}) / 正解: (${line.step3.targetSym}, ${line.step3.targetCol})`);
+        resSpan.innerHTML = "<span style='color:var(--red);'>エラー</span>";
+        sendErrorLog(`[ライン${lineKey}] 認証エラー`);
       }
     }
 
@@ -1553,7 +1885,7 @@
       if (myRole === 'HOST') return;
       const resSpan = document.getElementById(`result-${lineKey}`);
       if (numpadInputB.length !== 3) {
-        resSpan.innerHTML = "<span style='color:var(--red);'>3桁入力してください</span>";
+        resSpan.innerHTML = "<span style='color:var(--red);'>エラー</span>";
         return;
       }
       if (numpadInputB === bTargetPasscode) {
@@ -1562,8 +1894,8 @@
         sendDataToHost({ type: 'SOLVED', line: lineKey });
         renderModules();
       } else {
-        resSpan.innerHTML = "<span style='color:var(--red);'>番号が違います</span>";
-        sendErrorLog(`[ラインB テンキー誤入力] 入力値: "${numpadInputB}" / 正解PASS: "${bTargetPasscode}"`);
+        resSpan.innerHTML = "<span style='color:var(--red);'>エラー</span>";
+        sendErrorLog(`[ラインB] テンキー認証エラー`);
       }
     }
 
@@ -1597,7 +1929,7 @@
       const sendBtn = document.getElementById('sendBtn');
       const counter = document.getElementById('charCount');
       counter.textContent = input.value.length;
-      sendBtn.disabled = (input.value.length === 0 || input.value.length > 40);
+      sendBtn.disabled = (input.value.length === 0 || input.value.length > 40 || currentPhase !== 'DEFUSE');
     }
 
     function renderChatLog() {
@@ -1605,8 +1937,8 @@
       log.innerHTML = "";
       masterMessages.forEach(m => {
         const div = document.createElement('div');
-        div.className = `chat-msg ${m.sender === myRole ? 'mine' : ''}`;
-        div.textContent = `${m.sender}: ${m.text}`;
+        div.className = `chat-msg ${m.isSystem ? 'system' : (m.sender === myRole ? 'mine' : '')}`;
+        div.textContent = m.isSystem ? m.text : `${m.sender}: ${m.text}`;
         log.appendChild(div);
       });
       log.scrollTop = log.scrollHeight;
@@ -1620,7 +1952,7 @@
         b.style.display = "inline";
         b.textContent = `+${unreadCount}`;
         const pl2B = document.getElementById('pl2ChatUnread');
-        if (pl2B && activeRole === 'PL2') pl2B.style.display = "inline";
+        if (pl2B && myRole === 'PL2') pl2B.style.display = "inline";
       } else {
         b.style.display = "none";
         const pl2B = document.getElementById('pl2ChatUnread');
@@ -1659,14 +1991,15 @@
     }
 
     function sendMessage() {
-      if (myRole === 'HOST') return;
+      if (myRole === 'HOST' || currentPhase !== 'DEFUSE') return;
       const input = document.getElementById('chatInput');
       const text = input.value.trim();
       if (!text || text.length > 40) return;
 
       const activeRole = getActiveViewRole();
-      const msgObj = { sender: activeRole, text: text };
+      const msgObj = { sender: activeRole, text: text, isSystem: false };
       masterMessages.push(msgObj);
+      currentSessionData.chatLog.push(msgObj);
       displayedMessages.push(msgObj);
 
       sendDataToHost({ type: 'CHAT', message: msgObj });
