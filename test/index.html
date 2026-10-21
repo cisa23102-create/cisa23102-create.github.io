@@ -48,13 +48,16 @@
 
     /* ホスト常設URL配布バー */
     .host-url-bar {
-      background: #090d16; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px;
-      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      background: #090d16; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;
+      display: flex; flex-direction: column; gap: 10px;
     }
-    .url-chip-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .url-chip {
-      background: #1e293b; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px;
-      font-size: 0.8rem; display: flex; align-items: center; gap: 6px;
+    .url-row {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .url-label { width: 55px; font-weight: bold; font-size: 0.85rem; }
+    .url-input-field {
+      flex: 1; min-width: 260px; background: #1e293b; border: 1px solid var(--border); color: var(--text);
+      padding: 6px 10px; border-radius: 4px; font-family: monospace; font-size: 0.8rem;
     }
 
     /* PL2専用タブバー */
@@ -329,25 +332,32 @@
   <!-- 担当画面（ゲームメイン画面：起動直後からここに直行） -->
   <div id="view-game" class="view-container active" style="max-width:1100px;">
     
-    <!-- ホスト専用：常設URLコピー・配布バー -->
+    <!-- ホスト専用：常設URL配布バー（入力欄直接コピー対応） -->
     <div id="hostUrlBarArea" class="host-url-bar" style="display:none;">
-      <span style="font-weight:bold; font-size:0.85rem; color:var(--accent);">🔗 各PL用URLコピー:</span>
-      <div class="url-chip-group">
-        <div class="url-chip">
-          <span style="color:var(--accent); font-weight:bold;">PL1:</span>
-          <button class="btn-primary" style="padding:2px 8px; font-size:0.75rem;" onclick="copyRoleUrl('PL1')">URLコピー</button>
-          <span id="host-status-pl1" style="color:var(--red); font-size:0.75rem;">未接続</span>
-        </div>
-        <div class="url-chip">
-          <span style="color:var(--yellow); font-weight:bold;">PL2:</span>
-          <button class="btn-primary" style="padding:2px 8px; font-size:0.75rem;" onclick="copyRoleUrl('PL2')">URLコピー</button>
-          <span id="host-status-pl2" style="color:var(--red); font-size:0.75rem;">未接続</span>
-        </div>
-        <div class="url-chip">
-          <span style="color:var(--purple); font-weight:bold;">PL3:</span>
-          <button class="btn-primary" style="padding:2px 8px; font-size:0.75rem;" onclick="copyRoleUrl('PL3')">URLコピー</button>
-          <span id="host-status-pl3" style="color:var(--red); font-size:0.75rem;">未接続</span>
-        </div>
+      <div style="font-weight:bold; font-size:0.9rem; color:var(--accent); display:flex; justify-content:space-between; align-items:center;">
+        <span>🔗 各PL用URLの配布・コピー:</span>
+        <span style="font-size:0.75rem; color:var(--text-muted);">※クリックで全選択またはコピーボタンを押してください</span>
+      </div>
+
+      <div class="url-row">
+        <span class="url-label" style="color:var(--accent);">PL1用:</span>
+        <input type="text" id="url-PL1" class="url-input-field" readonly onclick="this.select()">
+        <button class="btn-primary" style="padding:4px 10px; font-size:0.8rem;" onclick="copyRoleUrl('PL1')">コピー</button>
+        <span id="host-status-pl1" style="color:var(--red); font-size:0.8rem; font-weight:bold; width:60px;">未接続</span>
+      </div>
+
+      <div class="url-row">
+        <span class="url-label" style="color:var(--yellow);">PL2用:</span>
+        <input type="text" id="url-PL2" class="url-input-field" readonly onclick="this.select()">
+        <button class="btn-primary" style="padding:4px 10px; font-size:0.8rem;" onclick="copyRoleUrl('PL2')">コピー</button>
+        <span id="host-status-pl2" style="color:var(--red); font-size:0.8rem; font-weight:bold; width:60px;">未接続</span>
+      </div>
+
+      <div class="url-row">
+        <span class="url-label" style="color:var(--purple);">PL3用:</span>
+        <input type="text" id="url-PL3" class="url-input-field" readonly onclick="this.select()">
+        <button class="btn-primary" style="padding:4px 10px; font-size:0.8rem;" onclick="copyRoleUrl('PL3')">コピー</button>
+        <span id="host-status-pl3" style="color:var(--red); font-size:0.8rem; font-weight:bold; width:60px;">未接続</span>
       </div>
     </div>
 
@@ -452,7 +462,7 @@
     let peer = null;
     let connections = [];
     let hostConn = null;
-    let isGameRunning = true; // 起動直後からゲーム進行可能状態
+    let isGameRunning = true;
     let outboundQueue = [];
 
     let pl3CooldownTimer = null;
@@ -467,7 +477,6 @@
       PL3: { chatInput: "", memo: "", curSym: null, curCol: null }
     };
 
-    // ★ 安定TURN設定
     const peerConfig = {
       config: {
         iceServers: [
@@ -596,7 +605,7 @@
       if (sec1El) sec1El.textContent = sec1;
 
       // OTPタイマー
-      if (myRole === 'HOST') {
+      if (myRole === 'HOST' && isGameRunning) {
         otpRemainingSec--;
         if (otpRemainingSec <= 0) {
           refreshOtpPasscodes();
@@ -636,7 +645,7 @@
       const roleParam = params.get('role');
 
       if (!hostParam) {
-        // ホスト起動：即座に担当画面を表示
+        // ホスト起動
         myRole = 'HOST';
         document.getElementById('roleIndicator').textContent = "ホスト管理者";
         document.getElementById('roleIndicator').style.color = "var(--accent)";
@@ -644,7 +653,6 @@
         document.getElementById('hostFloatingConsole').style.display = 'block';
         document.getElementById('hostUrlBarArea').style.display = 'flex';
 
-        // 初期パラメータ生成
         bTargetPasscode = Math.floor(100 + Math.random() * 900).toString();
         bParityTarget = (Math.random() < 0.5) ? "even" : "odd";
 
@@ -652,7 +660,7 @@
         initGameView();
         initHostPeer();
       } else {
-        // クライアント起動：指定された役職の担当画面で即時起動
+        // クライアント起動：役職直行
         hostPeerId = hostParam;
         myRole = (roleParam && ['PL1', 'PL2', 'PL3'].includes(roleParam)) ? roleParam : 'PL1';
 
@@ -678,7 +686,10 @@
         const baseUrl = `${window.location.origin}${window.location.pathname}?host=${id}`;
 
         ['PL1', 'PL2', 'PL3'].forEach(r => {
-          generatedUrls[r] = `${baseUrl}&role=${r}`;
+          const fullUrl = `${baseUrl}&role=${r}`;
+          generatedUrls[r] = fullUrl;
+          const input = document.getElementById(`url-${r}`);
+          if (input) input.value = fullUrl;
         });
 
         peer.on('connection', conn => {
@@ -707,15 +718,54 @@
       });
     }
 
+    // ★ どんな環境でも確実にコピーできるハイブリッドコピー関数
     function copyRoleUrl(role) {
-      const url = generatedUrls[role];
-      if (!url) {
-        alert("まだホストIDが発行されていません。数秒お待ちください。");
+      const input = document.getElementById(`url-${role}`);
+      const textToCopy = input ? input.value : generatedUrls[role];
+
+      if (!textToCopy) {
+        alert("ホストIDの発行待機中です。数秒後に再度お試しください。");
         return;
       }
-      navigator.clipboard.writeText(url).then(() => {
-        alert(`${role} 専用URLをコピーしました！\n${url}`);
-      });
+
+      if (input) {
+        input.select();
+        input.setSelectionRange(0, 99999);
+      }
+
+      // 1. まず標準の Clipboard API を試行
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          alert(`【コピー成功】\n${role} 用のURLをコピーしました！`);
+        }).catch(() => {
+          fallbackCopyText(textToCopy, role);
+        });
+      } else {
+        fallbackCopyText(textToCopy, role);
+      }
+    }
+
+    function fallbackCopyText(text, role) {
+      try {
+        const tempTextarea = document.createElement("textarea");
+        tempTextarea.value = text;
+        tempTextarea.style.position = "fixed";
+        tempTextarea.style.top = "-9999px";
+        tempTextarea.style.left = "-9999px";
+        document.body.appendChild(tempTextarea);
+        tempTextarea.focus();
+        tempTextarea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(tempTextarea);
+
+        if (successful) {
+          alert(`【コピー成功】\n${role} 用のURLをコピーしました！`);
+        } else {
+          prompt(`お使いのブラウザでは自動コピーがブロックされました。\n以下のURLを手動でコピーしてください:`, text);
+        }
+      } catch (err) {
+        prompt(`お使いのブラウザでは自動コピーがブロックされました。\n以下のURLを手動でコピーしてください:`, text);
+      }
     }
 
     function hostLog(msg, type = 'normal') {
@@ -753,7 +803,6 @@
         }
         hostLog(`【参加認識】${data.role} が担当画面にチェックイン`, 'info');
 
-        // 最新のゲーム状態を即座に同期返信
         senderConn.send({
           type: 'START_GAME',
           passcodes: pl2Passcodes,
@@ -906,7 +955,7 @@
       initGameView();
     }
 
-    // クライアント初期化（URL直行・自動チェックイン）
+    // クライアント初期化
     function initClientPreConnection() {
       peer = new Peer(peerConfig);
 
