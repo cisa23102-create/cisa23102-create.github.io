@@ -46,7 +46,6 @@
     .view-container.active { display: block; }
     .panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
 
-    /* ホスト常設URL配布バー */
     .host-url-bar {
       background: #090d16; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;
       display: flex; flex-direction: column; gap: 10px;
@@ -58,13 +57,11 @@
       padding: 6px 10px; border-radius: 4px; font-family: monospace; font-size: 0.8rem;
     }
 
-    /* フェイズ案内バナー */
     .phase-banner {
       background: rgba(56, 189, 248, 0.15); border: 1px solid var(--accent); border-radius: 6px;
       padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
     }
 
-    /* PL2専用タブバー */
     .pl2-bar-container {
       display: none; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;
       background: #090d16; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); flex-wrap: wrap;
@@ -75,12 +72,10 @@
       box-shadow: 0 0 10px var(--accent-glow);
     }
 
-    /* グリッドレイアウト */
     .main-grid { display: grid; grid-template-columns: 360px 1fr; gap: 14px; }
     .single-view { display: block !important; }
     @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
 
-    /* チャットエリア */
     .chat-section {
       background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px;
       display: flex; flex-direction: column; gap: 10px;
@@ -118,7 +113,6 @@
     .send-btn { background: var(--accent); color: #000; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; }
     .char-counter { font-size: 0.75rem; color: var(--text-muted); text-align: right; }
 
-    /* メモ欄 */
     .memo-section {
       margin-top: 6px; border-top: 1px solid var(--border); padding-top: 8px; display: flex; flex-direction: column; gap: 4px;
     }
@@ -128,18 +122,24 @@
       border-radius: 4px; font-size: 0.85rem; height: 100px; resize: vertical; width: 100%;
     }
 
-    /* マニュアル表示セクション (準備フェイズ専用) */
-    .manual-card {
-      background: #090d16; border: 1px solid var(--accent); border-radius: 8px; padding: 14px; margin-bottom: 12px;
+    .integrated-manual-card {
+      background: #090d16; border: 2px solid var(--accent); border-radius: 8px; padding: 18px; margin-bottom: 12px;
     }
-    .manual-card-header {
-      font-weight: bold; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;
+    .integrated-manual-header {
+      font-weight: bold; font-size: 1.1rem; color: var(--accent); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
     }
-    .manual-body {
-      font-size: 0.85rem; line-height: 1.6; color: var(--text); background: #1e293b; padding: 12px; border-radius: 6px;
+    .integrated-manual-body {
+      font-size: 0.9rem; line-height: 1.7; color: var(--text); background: #1e293b; padding: 16px; border-radius: 6px;
+    }
+    .manual-step-item {
+      margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px dashed var(--border);
+    }
+    .manual-step-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .manual-step-tag {
+      display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px;
     }
 
-    /* モジュールエリア */
     .modules-section { display: flex; flex-direction: column; gap: 12px; }
 
     .otp-display-panel {
@@ -193,7 +193,6 @@
     }
     .unlock-btn { background: var(--yellow); color: #000; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; }
 
-    /* ステップ要素 */
     .step1-box { display: flex; gap: 14px; align-items: center; }
     .hover-sensor {
       min-width: 80px; height: 80px; padding: 0 8px; background: #090d16; border: 2px dashed var(--border); border-radius: 8px;
@@ -303,7 +302,6 @@
       background: var(--accent); color: #000; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; align-self: flex-start;
     }
 
-    /* ホスト閲覧モード時の入力無効化（URLコピーや管理ボタンは対象外） */
     .host-view-mode #modulesContainer input,
     .host-view-mode #modulesContainer button,
     .host-view-mode #chatSection input,
@@ -322,7 +320,6 @@
       background: #1e293b; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);
     }
 
-    /* アンケートフォーム */
     .survey-group { margin-bottom: 16px; text-align: left; }
     .survey-group label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 0.9rem; color: var(--accent); }
     .survey-group textarea, .survey-group input[type="text"] {
@@ -333,17 +330,14 @@
 </head>
 <body>
 
-  <!-- ヘッダー -->
   <header>
     <div class="header-title" id="systemTitle">非同期コミュニケーション協力ゲーム α版</div>
     <div class="status-group">
-      <!-- 分の1桁目(timer-min1)を強調表示 -->
       <div>現在時刻: <span class="timer-badge"><span id="clockHour">--</span>:<span id="clockMin10">-</span><span id="clockMin1" class="timer-min1">-</span>:<span id="clockSec">--</span></span></div>
       <div>進捗: <span id="syncProgress" style="font-weight:bold; color:var(--accent);">0 / 3 完了</span></div>
       <div id="roleIndicator" style="font-weight:bold; color:var(--yellow);">未確定</div>
       <button id="btnEnableNotify" onclick="requestNotificationPermission()" style="font-size:0.75rem; padding:4px 8px; background:#1e293b; border:1px solid var(--border);">🔔 通知</button>
       
-      <!-- ホスト専用視点切替バー -->
       <div id="hostRoleSwitcher" style="display:none; margin-left:6px; align-items:center; gap:6px;">
         <span style="font-size:0.8rem; color:var(--text-muted);">視点:</span>
         <button class="role-btn active" id="host-view-PL1" onclick="hostChangeView('PL1')">PL1</button>
@@ -353,10 +347,8 @@
     </div>
   </header>
 
-  <!-- 担当画面（ゲームメイン画面：起動直後からここに直行） -->
   <div id="view-game" class="view-container active" style="max-width:1100px;">
     
-    <!-- ホスト専用：常設URL配布バー -->
     <div id="hostUrlBarArea" class="host-url-bar" style="display:none;">
       <div style="font-weight:bold; font-size:0.9rem; color:var(--accent); display:flex; justify-content:space-between; align-items:center;">
         <span>🔗 各PL専用URLの配布・コピー:</span>
@@ -385,16 +377,14 @@
       </div>
     </div>
 
-    <!-- フェイズ進行案内バナー -->
     <div id="phaseBanner" class="phase-banner">
       <div>
         <span style="font-weight:bold;" id="phaseTitle">【準備フェイズ (07:00〜)】</span>
-        <span id="phaseDesc" style="font-size:0.85rem; margin-left:8px;">配られた解除マニュアルを読み、メモを取りましょう。完了したら準備完了を押してください。</span>
+        <span id="phaseDesc" style="font-size:0.85rem; margin-left:8px;">あなたに割り当てられたラインの解除マニュアルを読み、メモを取りましょう。完了したら準備完了を押してください。</span>
       </div>
       <button id="btnReadyComplete" class="btn-success" onclick="clientSubmitReady()">準備完了</button>
     </div>
 
-    <!-- PL2専用タブバー -->
     <div class="pl2-bar-container" id="pl2BarContainer">
       <div class="pl2-tab-group">
         <span style="font-size:0.85rem; font-weight:bold; color:var(--yellow);">表示画面:</span>
@@ -407,7 +397,6 @@
     </div>
 
     <div class="main-grid" id="gameMainGrid">
-      <!-- PL2専用メモ画面 -->
       <div class="chat-section" id="pl2MemoSection" style="display:none; height:460px;">
         <div class="chat-header">
           <span style="font-weight:bold; font-size:0.95rem; color:var(--yellow);">📝 メモ画面</span>
@@ -415,7 +404,6 @@
         <textarea id="pl2DedicatedTextarea" style="flex:1; width:100%; background:#090d16; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; font-size:0.95rem; line-height:1.6; resize:none;" placeholder="ここにメモを入力 (自動保存)..." oninput="handlePl2MemoInput(this.value)"></textarea>
       </div>
 
-      <!-- チャット画面 -->
       <div class="chat-section" id="chatSection">
         <div class="chat-header">
           <span style="font-weight:bold; font-size:0.9rem;">チャット</span>
@@ -441,16 +429,11 @@
         </div>
       </div>
 
-      <!-- 右側：準備フェイズのマニュアル ＆ 解除フェイズのモジュール -->
       <div class="modules-section" id="modulesSection">
-        
-        <!-- 【準備フェイズ専用】解除マニュアル表示エリア -->
         <div id="manualContainer">
-          <div style="font-weight:bold; color:var(--accent); margin-bottom:8px;">📖 あなたに配布された解除マニュアル (準備フェイズ限定表示):</div>
           <div id="manualCardsList"></div>
         </div>
 
-        <!-- 【解除フェイズ専用】モジュール表示エリア -->
         <div id="activePlayContainer" style="display:none; flex-direction:column; gap:12px;">
           <div class="otp-display-panel" id="otpPanel" style="display:none;"></div>
           <div class="pl3-info-banner" id="pl3Banner" style="display:none;">
@@ -459,12 +442,10 @@
           </div>
           <div id="modulesContainer" style="display:flex; flex-direction:column; gap:12px;"></div>
         </div>
-
       </div>
     </div>
   </div>
 
-  <!-- 画面2: ゲーム内アンケート画面 (21:00またはクリア時) -->
   <div id="view-result" class="view-container">
     <div class="panel" style="max-width:700px; margin:0 auto; padding:24px;">
       <h2 id="resultTitle" style="color:var(--accent); margin-bottom:8px; text-align:center;">タスク終了</h2>
@@ -511,7 +492,6 @@
     </div>
   </div>
 
-  <!-- 履歴データ確認モーダル (ホスト用) -->
   <div id="historyModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; padding:20px; overflow-y:auto;">
     <div style="max-width:850px; margin:20px auto; background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:20px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
@@ -525,7 +505,6 @@
     </div>
   </div>
 
-  <!-- ホスト専用フローティングコンソール -->
   <div id="hostFloatingConsole">
     <div class="console-header">
       <span style="font-weight:bold; font-size:0.85rem; color:var(--accent);">🖥️ 監査コンソール (常時表示)</span>
@@ -540,7 +519,6 @@
   </div>
 
   <script>
-    // --- グローバル状態 ---
     let myRole = null;
     let hostViewingRole = 'PL1';
     let hostPeerId = null;
@@ -549,7 +527,6 @@
     let hostConn = null;
     let outboundQueue = [];
 
-    // フェイズ管理: 'PREPARE' (準備), 'DEFUSE' (解除), 'FINISHED' (終了・アンケート)
     let currentPhase = 'PREPARE';
     let readyStatus = { PL1: false, PL2: false, PL3: false };
 
@@ -559,7 +536,13 @@
     let roleConnected = { PL1: false, PL2: false, PL3: false };
     let generatedUrls = { PL1: "", PL2: "", PL3: "" };
 
-    // セッションログ記録用
+    const lineOrderShuffled = ['A', 'B', 'C'].sort(() => Math.random() - 0.5);
+    let assignedManualByRole = {
+      PL1: lineOrderShuffled[0],
+      PL2: lineOrderShuffled[1],
+      PL3: lineOrderShuffled[2]
+    };
+
     let currentSessionData = {
       sessionId: "session_" + Date.now(),
       startTime: new Date().toISOString(),
@@ -567,7 +550,8 @@
       clearStatus: "IN_PROGRESS",
       chatLog: [],
       errorLogs: [],
-      surveys: []
+      surveys: [],
+      assignedManuals: assignedManualByRole
     };
 
     let plClientStates = {
@@ -617,7 +601,7 @@
     };
 
     let bCurrentSignal = "82";
-    let bParityTarget = "even"; // 分の1桁目が偶数か奇数か
+    let bParityTarget = "even";
     let bTargetPasscode = "729";
 
     const allNums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => Math.random() - 0.5);
@@ -668,43 +652,72 @@
     };
     let pl3ShuffledOrder = ["A", "B", "C"].sort(() => Math.random() - 0.5);
 
-    // 解除マニュアルのテキスト定義 (準備フェイズで閲覧可能)
-    const manualDatabase = {
-      "A-1": {
-        title: "ラインA: 隠し記号検出マニュアル",
-        content: "センサー領域にカーソルを乗せる（スマホの場合は長押しタッチ）と、隠された『入力記号』と『色』が浮き上がります。この情報を担当者に正確に伝達してください。"
+    const integratedLineManuals = {
+      "A": {
+        lineName: "ラインA: 記号・色彩変換プロトコル",
+        tagClass: "pipe-A",
+        summary: "ラインAは【隠し記号の検出】➜【対応表マトリクスでの変換】➜【正しい記号・色の選択決定】の3ステップで構成される暗号変換システムです。",
+        steps: [
+          {
+            tag: "モジュール A-1 (検出)",
+            title: "隠された記号と色彩の読み取り",
+            text: "センサー領域にカーソルを乗せる（スマホの場合は長押しタッチ）と、隠された『入力記号（⯁, ⬖, ⬗, ◈）』と『色（青, 黄, 紫, 赤）』が表示されます。この組み合わせを特定し、変換担当者へ伝達してください。"
+          },
+          {
+            tag: "モジュール A-2 (変換マトリクス)",
+            title: "対応表による記号・色変換",
+            text: "対応表（縦軸：入力記号、横軸：入力色）を参照し、A-1で得られた記号と色が交差するマス目を確認します。マス目に書かれた新しい『出力記号（⬓, ⬒, ◩, ◪）』と『出力色』の組み合わせが、最終認証に必要な解答となります。"
+          },
+          {
+            tag: "モジュール A-3 (最終決定)",
+            title: "認証コードの選択と決定",
+            text: "対応表から導き出された正しい記号と色をそれぞれ選択し、『決定』ボタンを押してください。正解していればラインAの解除が完了します。誤っていた場合は『エラー』と表示されます。"
+          }
+        ]
       },
-      "A-2": {
-        title: "ラインA: 記号・色変換マトリクスマニュアル",
-        content: "検出された『入力記号』と『色』が交差するマス目を確認します。そこに示された新しい『出力記号』と『色』の組み合わせが最終的な解除コードとなります。"
+      "B": {
+        lineName: "ラインB: 時刻同期型シグナル変換プロトコル",
+        tagClass: "pipe-B",
+        summary: "ラインBは【シグナル検出】➜【時計連動パスワード出力】➜【テンキー認証】の3ステップで構成される時間制限付きシステムです。",
+        steps: [
+          {
+            tag: "モジュール B-1 (シグナル検出)",
+            title: "原盤数字シグナルの取得",
+            text: "センサー領域に乗せることで、原盤となる2桁の数字シグナルが表示されます。この数字をB-2の出力担当者へ共有してください。"
+          },
+          {
+            tag: "モジュール B-2 (パスワード出力)",
+            title: "現在時刻の分の1桁目に応じた出力実行",
+            text: "B-1の数字を入力した上でボタンを押します。ただし、この出力装置は<b>【現在時刻の『分の1の位』が条件（奇数または偶数）に合致した瞬間】</b>にしか正常動作しません。条件外で押すと『ERROR』となり、パスワードは出力されません。"
+          },
+          {
+            tag: "モジュール B-3 (テンキー認証)",
+            title: "出力パスワードのテンキー入力",
+            text: "B-2で出力された3桁のパスワードをテンキーに入力し、決定ボタンを押して認証を完了させてください。誤った番号を入力すると『エラー』と表示されます。"
+          }
+        ]
       },
-      "A-3": {
-        title: "ラインA: 最終認証決定マニュアル",
-        content: "対応表から導き出された正しい『記号』と『色』の両方を選択し、決定ボタンを押して認証を完了させてください。"
-      },
-      "B-1": {
-        title: "ラインB: シグナル検出マニュアル",
-        content: "センサーを起動して隠された2桁の数字シグナルを読み取ります。パスワード変換担当者へこの数字を伝えてください。"
-      },
-      "B-2": {
-        title: "ラインB: 時刻同期パスワード出力マニュアル",
-        content: "検出された数字を入力し、指定された時刻（分の1の位が奇数または偶数）の瞬間にボタンを押すと、3桁の解除パスワードが出力されます。失敗時は『ERROR』とだけ表示されます。"
-      },
-      "B-3": {
-        title: "ラインB: テンキー認証マニュアル",
-        content: "B-2で出力された3桁のパスワードをテンキーで入力し、決定ボタンを押してロックを解除してください。"
-      },
-      "C-1": {
-        title: "ラインC: 順次起動マニュアル (前半)",
-        content: "全プレイヤーの手元に1〜12の番号ボタンが4個ずつ分散して配られています。1から順に小さい順で押していく必要があります。"
-      },
-      "C-2": {
-        title: "ラインC: 順次起動マニュアル (中盤)",
-        content: "現在押すべき番号が自分の手元にある場合のみ押してください。順番を間違えた場合は最初からやり直しとなり、全員のボタンが再シャッフルされます。"
-      },
-      "C-3": {
-        title: "ラインC: 順次起動マニュアル (終盤)",
-        content: "チャット等で『今何番か』を確認し合いながら進めてください。12番までミスなく押し終えるとラインCの解除が完了します。"
+      "C": {
+        lineName: "ラインC: 分散型シーケンス順次起動プロトコル",
+        tagClass: "pipe-C",
+        summary: "ラインCは、全プレイヤーの手元に分散された1〜12の番号ボタンを、チーム全員で順番通りに押し進める協調システムです。",
+        steps: [
+          {
+            tag: "全体構成",
+            title: "番号ボタンの分散配置",
+            text: "1から12までの番号ボタンが、PL1・PL2・PL3の手元に4個ずつ均等かつランダムに分散して配置されています。"
+          },
+          {
+            tag: "起動ルール",
+            title: "昇順（1 ➜ 12）での連続押下",
+            text: "現在対象となっている最小の番号（1からスタート）を持っているプレイヤーがその番号を押します。正しく押されると対象番号が1つ進みます。"
+          },
+          {
+            tag: "ペナルティ注意",
+            title: "順番間違いによる強制リセット",
+            text: "現在の目標番号以外のボタンを誤って押してしまうと、即座に『1番』からやり直しとなり、全員の手持ちボタンが再シャッフルされます。チャット等で『次は何番か』を必ず確認し合いながら進めてください。"
+          }
+        ]
       }
     };
 
@@ -718,7 +731,6 @@
     let masterMessages = [];
     let displayedMessages = [];
 
-    // --- 時計更新（分の1桁目を強調） ---
     let clockInterval = null;
 
     function startClock() {
@@ -741,12 +753,10 @@
       document.getElementById('clockMin1').textContent = min1;
       document.getElementById('clockSec').textContent = s;
 
-      // 21:00強制終了チェック
       if (now.getHours() >= 21 && currentPhase !== 'FINISHED') {
         endGame("TIME_UP_21");
       }
 
-      // OTPタイマー
       if (myRole === 'HOST' && currentPhase === 'DEFUSE') {
         otpRemainingSec--;
         if (otpRemainingSec <= 0) {
@@ -777,7 +787,6 @@
       }
     }
 
-    // --- 起動 ---
     window.addEventListener('DOMContentLoaded', () => {
       startClock();
       loadLocalState();
@@ -787,7 +796,6 @@
       const roleParam = params.get('role');
 
       if (!hostParam) {
-        // ホスト起動
         myRole = 'HOST';
         document.getElementById('roleIndicator').textContent = "ホスト管理者";
         document.getElementById('roleIndicator').style.color = "var(--accent)";
@@ -802,7 +810,6 @@
         initGameView();
         initHostPeer();
       } else {
-        // クライアント起動：役職直行
         hostPeerId = hostParam;
         myRole = (roleParam && ['PL1', 'PL2', 'PL3'].includes(roleParam)) ? roleParam : 'PL1';
 
@@ -815,7 +822,6 @@
       }
     });
 
-    // ホスト初期化
     function initHostPeer() {
       peer = new Peer(peerConfig);
 
@@ -860,7 +866,6 @@
       });
     }
 
-    // ハイブリッドコピー関数 (確実にクリップボードにコピー)
     function copyRoleUrl(role) {
       const input = document.getElementById(`url-${role}`);
       const textToCopy = input ? input.value : generatedUrls[role];
@@ -934,7 +939,6 @@
       area.style.display = (area.style.display === 'none') ? 'block' : 'none';
     }
 
-    // ホストの受信・進行管理
     function handleDataAsHost(senderConn, data) {
       if (data.type === 'HELLO_ROLE') {
         roleConnected[data.role] = true;
@@ -943,12 +947,13 @@
           st.textContent = "接続中";
           st.style.color = "var(--green)";
         }
-        hostLog(`【参加認識】${data.role} が担当画面にチェックイン`, 'info');
+        hostLog(`【参加認識】${data.role} が担当画面にチェックイン (配布マニュアル: ライン${assignedManualByRole[data.role]})`, 'info');
 
         senderConn.send({
           type: 'SYNC_CURRENT_STATE',
           phase: currentPhase,
           readyStatus: readyStatus,
+          assignedManuals: assignedManualByRole,
           passcodes: pl2Passcodes,
           lineCButtons: lineCButtonsByRole,
           bPass: bTargetPasscode,
@@ -965,14 +970,12 @@
         readyStatus[data.role] = true;
         hostLog(`【準備完了】${data.role} が準備完了ボタンを押下`, 'info');
         
-        // チャットに自動送信
         const sysMsg = { sender: "SYSTEM", text: `📢 ${data.role} が準備完了しました。`, isSystem: true };
         masterMessages.push(sysMsg);
         currentSessionData.chatLog.push(sysMsg);
         broadcastToClients({ type: 'CHAT', message: sysMsg });
         renderChatLog();
 
-        // 全員完了判定
         if (readyStatus.PL1 && readyStatus.PL2 && readyStatus.PL3) {
           transitionToDefusePhase();
         } else {
@@ -1025,7 +1028,6 @@
       }
     }
 
-    // 解除フェイズへの移行処理
     function transitionToDefusePhase() {
       currentPhase = 'DEFUSE';
       hostLog("🚀 全員準備完了！【解除フェイズ】が開始されました。（マニュアル非表示・モジュール開放）", 'info');
@@ -1056,7 +1058,7 @@
 
       if (currentPhase === 'PREPARE') {
         bannerTitle.textContent = "【準備フェイズ (07:00〜)】";
-        bannerDesc.textContent = "配布マニュアルを読みメモを取りましょう。完了したら準備完了を押してください。";
+        bannerDesc.textContent = "配布されたライン解除マニュアルを読み、メモを取りましょう。完了したら準備完了を押してください。";
         readyBtn.style.display = "inline-block";
         chatIn.disabled = true;
         chatIn.placeholder = "解除フェイズ開始後に送信可能";
@@ -1126,6 +1128,7 @@
         btn.classList.toggle('active', btn.id === `host-view-${role}`);
       });
       applyLayoutByRole();
+      renderManuals();
       renderModules();
 
       if (plClientStates[role]) {
@@ -1169,7 +1172,6 @@
       setView('view-result');
     }
 
-    // アンケート送信処理
     function submitGameSurvey(e) {
       e.preventDefault();
       const form = e.target;
@@ -1190,7 +1192,6 @@
       const postSec = document.getElementById('postSurveySection');
       postSec.style.display = "block";
 
-      // テストプレイ用URL一覧表示
       const urlBox = document.getElementById('testplayUrlList');
       if (generatedUrls.PL1) {
         urlBox.innerHTML = `
@@ -1202,7 +1203,6 @@
       }
     }
 
-    // セッションデータ保存 (ローカルストレージ)
     function saveSessionToStorage() {
       try {
         let history = JSON.parse(localStorage.getItem('coop_game_history') || "[]");
@@ -1258,7 +1258,6 @@
       a.click();
     }
 
-    // クライアント初期化
     function initClientPreConnection() {
       peer = new Peer(peerConfig);
 
@@ -1292,6 +1291,7 @@
       if (data.type === 'SYNC_CURRENT_STATE') {
         currentPhase = data.phase;
         readyStatus = data.readyStatus;
+        if (data.assignedManuals) assignedManualByRole = data.assignedManuals;
         pl2Passcodes = data.passcodes;
         lineCButtonsByRole = data.lineCButtons;
         bTargetPasscode = data.bPass;
@@ -1351,31 +1351,37 @@
       renderChatLog();
     }
 
-    // マニュアル描画 (各自の役職に応じた3つのマニュアルを表示)
     function renderManuals() {
       const container = document.getElementById('manualCardsList');
       if (!container) return;
       container.innerHTML = "";
 
       const activeRole = getActiveViewRole();
-      const myTasks = roleAssignments[activeRole] || [];
+      const myLineKey = assignedManualByRole[activeRole] || 'A';
+      const manual = integratedLineManuals[myLineKey];
 
-      myTasks.forEach(task => {
-        const modKey = `${task.line}-${task.step}`;
-        const manual = manualDatabase[modKey];
-        if (manual) {
-          const card = document.createElement('div');
-          card.className = "manual-card";
-          card.innerHTML = `
-            <div class="manual-card-header">
-              <span>【${modKey}】 ${manual.title}</span>
-              <span style="font-size:0.75rem; color:var(--text-muted);">マニュアル</span>
-            </div>
-            <div class="manual-body">${manual.content}</div>
-          `;
-          container.appendChild(card);
-        }
-      });
+      if (manual) {
+        const card = document.createElement('div');
+        card.className = "integrated-manual-card";
+
+        const stepsHtml = manual.steps.map((st, i) => `
+          <div class="manual-step-item">
+            <span class="manual-step-tag ${manual.tagClass}">${st.tag}</span>
+            <div style="font-weight:bold; color:var(--text); margin-bottom:4px;">${i + 1}. ${st.title}</div>
+            <div style="color:var(--text-muted); font-size:0.85rem;">${st.text}</div>
+          </div>
+        `).join('');
+
+        card.innerHTML = `
+          <div class="integrated-manual-header">
+            <span>📖 【${manual.lineName}】 解除マニュアル</span>
+            <span style="font-size:0.8rem; color:var(--yellow);">所持担当: ${activeRole}</span>
+          </div>
+          <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">${manual.summary}</div>
+          <div class="integrated-manual-body">${stepsHtml}</div>
+        `;
+        container.appendChild(card);
+      }
     }
 
     function getActiveViewRole() {
@@ -1792,7 +1798,6 @@
       syncMyStateToHost({ b2Input: val });
     }
 
-    // モジュールB-2 変換処理 (分の1桁目で判定 ＆ エラー時はERRORのみ表示)
     function executeB2Convert() {
       if (myRole === 'HOST') return;
       const input = document.getElementById('b2Input');
