@@ -28,7 +28,7 @@
       background: var(--card-bg); padding: 10px 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px; gap: 8px;
     }
     .header-title { font-weight: bold; font-size: 1.1rem; color: var(--accent); }
-    .status-group { display: flex; align-items: center; gap: 14px; font-size: 0.88rem; flex-wrap: wrap; }
+    .status-group { display: flex; align-items: center; gap: 12px; font-size: 0.88rem; flex-wrap: wrap; }
     .timer-badge { background: #000; padding: 4px 10px; border-radius: 4px; font-family: monospace; border: 1px solid var(--border); color: var(--text); font-weight: bold; font-size: 0.95rem; }
     .timer-sec10 { color: var(--yellow); font-weight: bold; font-size: 1.05rem; text-decoration: underline; }
 
@@ -46,16 +46,15 @@
     .view-container.active { display: block; }
     .panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
 
-    /* ホスト個別URL発行カード */
-    .url-card-grid {
-      display: grid; grid-template-columns: 1fr; gap: 10px; margin: 12px 0;
+    /* ホスト常設URL配布バー */
+    .host-url-bar {
+      background: #090d16; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
     }
-    .url-item {
-      background: #090d16; border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px;
-      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    }
-    .url-item input {
-      flex: 1; min-width: 260px; background: #1e293b; border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 4px; font-family: monospace; font-size: 0.85rem;
+    .url-chip-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .url-chip {
+      background: #1e293b; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px;
+      font-size: 0.8rem; display: flex; align-items: center; gap: 6px;
     }
 
     /* PL2専用タブバー */
@@ -312,14 +311,14 @@
   <header>
     <div class="header-title" id="systemTitle">非同期コミュニケーション協力ゲーム α版</div>
     <div class="status-group">
-      <!-- リアルタイム時計表示 -->
       <div>現在時刻: <span class="timer-badge"><span id="clockHourMin">--:--</span>:<span id="sec10" class="timer-sec10">-</span><span id="sec1">-</span></span></div>
       <div>進捗: <span id="syncProgress" style="font-weight:bold; color:var(--accent);">0 / 3 完了</span></div>
       <div id="roleIndicator" style="font-weight:bold; color:var(--yellow);">未確定</div>
       <button id="btnEnableNotify" onclick="requestNotificationPermission()" style="font-size:0.75rem; padding:4px 8px; background:#1e293b; border:1px solid var(--border);">🔔 通知</button>
       
+      <!-- ホスト専用視点切替バー -->
       <div id="hostRoleSwitcher" style="display:none; margin-left:6px; align-items:center; gap:6px;">
-        <span style="font-size:0.8rem; color:var(--text-muted);">ホスト視点:</span>
+        <span style="font-size:0.8rem; color:var(--text-muted);">視点:</span>
         <button class="role-btn active" id="host-view-PL1" onclick="hostChangeView('PL1')">PL1</button>
         <button class="role-btn" id="host-view-PL2" onclick="hostChangeView('PL2')">PL2</button>
         <button class="role-btn" id="host-view-PL3" onclick="hostChangeView('PL3')">PL3</button>
@@ -327,50 +326,32 @@
     </div>
   </header>
 
-  <!-- 画面1: ホスト管理ダッシュボード -->
-  <div id="view-host" class="view-container">
-    <div class="panel">
-      <h3 style="color:var(--accent); margin-bottom:8px;">🛠️ 実験管理コンソール (ホスト)</h3>
-      <p style="color:var(--text-muted); font-size:0.85rem;">以下の各プレイヤー専用URLを配布してください。各自が途中で画面を閉じても、同じURLを開けば状態が復元されます。</p>
-
-      <div class="url-card-grid">
-        <div class="url-item">
-          <span style="font-weight:bold; width:65px; color:var(--accent);">👤 PL1用:</span>
-          <input type="text" id="url-PL1" readonly>
-          <button class="btn-primary" onclick="copyRoleUrl('PL1')">コピー</button>
-          <span id="host-status-pl1" style="font-weight:bold; font-size:0.85rem; color:var(--red);">未接続</span>
+  <!-- 担当画面（ゲームメイン画面：起動直後からここに直行） -->
+  <div id="view-game" class="view-container active" style="max-width:1100px;">
+    
+    <!-- ホスト専用：常設URLコピー・配布バー -->
+    <div id="hostUrlBarArea" class="host-url-bar" style="display:none;">
+      <span style="font-weight:bold; font-size:0.85rem; color:var(--accent);">🔗 各PL用URLコピー:</span>
+      <div class="url-chip-group">
+        <div class="url-chip">
+          <span style="color:var(--accent); font-weight:bold;">PL1:</span>
+          <button class="btn-primary" style="padding:2px 8px; font-size:0.75rem;" onclick="copyRoleUrl('PL1')">URLコピー</button>
+          <span id="host-status-pl1" style="color:var(--red); font-size:0.75rem;">未接続</span>
         </div>
-        <div class="url-item">
-          <span style="font-weight:bold; width:65px; color:var(--yellow);">👤 PL2用:</span>
-          <input type="text" id="url-PL2" readonly>
-          <button class="btn-primary" onclick="copyRoleUrl('PL2')">コピー</button>
-          <span id="host-status-pl2" style="font-weight:bold; font-size:0.85rem; color:var(--red);">未接続</span>
+        <div class="url-chip">
+          <span style="color:var(--yellow); font-weight:bold;">PL2:</span>
+          <button class="btn-primary" style="padding:2px 8px; font-size:0.75rem;" onclick="copyRoleUrl('PL2')">URLコピー</button>
+          <span id="host-status-pl2" style="color:var(--red); font-size:0.75rem;">未接続</span>
         </div>
-        <div class="url-item">
-          <span style="font-weight:bold; width:65px; color:var(--purple);">👤 PL3用:</span>
-          <input type="text" id="url-PL3" readonly>
-          <button class="btn-primary" onclick="copyRoleUrl('PL3')">コピー</button>
-          <span id="host-status-pl3" style="font-weight:bold; font-size:0.85rem; color:var(--red);">未接続</span>
+        <div class="url-chip">
+          <span style="color:var(--purple); font-weight:bold;">PL3:</span>
+          <button class="btn-primary" style="padding:2px 8px; font-size:0.75rem;" onclick="copyRoleUrl('PL3')">URLコピー</button>
+          <span id="host-status-pl3" style="color:var(--red); font-size:0.75rem;">未接続</span>
         </div>
       </div>
-
-      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:14px;">
-        <button id="btnHostStart" class="btn-success" style="font-size:1rem; padding:8px 22px;" onclick="hostStartGame()">本番ゲーム開始</button>
-      </div>
     </div>
-  </div>
 
-  <!-- 画面2: 役職確認・待機画面 -->
-  <div id="view-select" class="view-container">
-    <div class="panel" style="text-align:center; padding:40px 20px;">
-      <h2 style="color:var(--accent); margin-bottom:12px;" id="clientRoleConfirmTitle">プレイヤー接続確認</h2>
-      <p style="color:var(--text-muted); margin-bottom:20px;" id="clientRoleConfirmDesc">ホストと接続を確立しています...</p>
-      <div id="selectWaitMsg" style="margin-top:10px; color:var(--yellow); font-weight:bold;">接続中...</div>
-    </div>
-  </div>
-
-  <!-- 画面3: ゲームプレイ画面 -->
-  <div id="view-game" class="view-container" style="max-width:1100px;">
+    <!-- PL2専用タブバー -->
     <div class="pl2-bar-container" id="pl2BarContainer">
       <div class="pl2-tab-group">
         <span style="font-size:0.85rem; font-weight:bold; color:var(--yellow);">表示画面:</span>
@@ -383,6 +364,7 @@
     </div>
 
     <div class="main-grid" id="gameMainGrid">
+      <!-- PL2専用メモ画面 -->
       <div class="chat-section" id="pl2MemoSection" style="display:none; height:460px;">
         <div class="chat-header">
           <span style="font-weight:bold; font-size:0.95rem; color:var(--yellow);">📝 メモ画面</span>
@@ -390,6 +372,7 @@
         <textarea id="pl2DedicatedTextarea" style="flex:1; width:100%; background:#090d16; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; font-size:0.95rem; line-height:1.6; resize:none;" placeholder="ここにメモを入力..." oninput="handlePl2MemoInput(this.value)"></textarea>
       </div>
 
+      <!-- チャット画面 -->
       <div class="chat-section" id="chatSection">
         <div class="chat-header">
           <span style="font-weight:bold; font-size:0.9rem;">チャット</span>
@@ -415,6 +398,7 @@
         </div>
       </div>
 
+      <!-- モジュール表示画面 -->
       <div class="modules-section" id="modulesSection">
         <div class="otp-display-panel" id="otpPanel" style="display:none;"></div>
         <div class="pl3-info-banner" id="pl3Banner" style="display:none;">
@@ -426,7 +410,7 @@
     </div>
   </div>
 
-  <!-- 画面4: 終了画面 -->
+  <!-- 終了画面 -->
   <div id="view-result" class="view-container">
     <div class="panel" style="text-align:center; padding:40px 20px;">
       <h2 id="resultTitle" style="color:var(--accent); margin-bottom:12px;">実験終了</h2>
@@ -468,13 +452,14 @@
     let peer = null;
     let connections = [];
     let hostConn = null;
-    let isGameRunning = false;
+    let isGameRunning = true; // 起動直後からゲーム進行可能状態
     let outboundQueue = [];
 
     let pl3CooldownTimer = null;
     let pl3CooldownRemaining = 0;
 
     let roleConnected = { PL1: false, PL2: false, PL3: false };
+    let generatedUrls = { PL1: "", PL2: "", PL3: "" };
 
     let plClientStates = {
       PL1: { chatInput: "", memo: "", b2Input: "", b2Key: null },
@@ -482,6 +467,7 @@
       PL3: { chatInput: "", memo: "", curSym: null, curCol: null }
     };
 
+    // ★ 安定TURN設定
     const peerConfig = {
       config: {
         iceServers: [
@@ -609,8 +595,8 @@
       if (sec10El) sec10El.textContent = sec10;
       if (sec1El) sec1El.textContent = sec1;
 
-      // OTPタイマーカウントダウン（ホスト主導）
-      if (myRole === 'HOST' && isGameRunning) {
+      // OTPタイマー
+      if (myRole === 'HOST') {
         otpRemainingSec--;
         if (otpRemainingSec <= 0) {
           refreshOtpPasscodes();
@@ -650,23 +636,31 @@
       const roleParam = params.get('role');
 
       if (!hostParam) {
+        // ホスト起動：即座に担当画面を表示
         myRole = 'HOST';
         document.getElementById('roleIndicator').textContent = "ホスト管理者";
         document.getElementById('roleIndicator').style.color = "var(--accent)";
-        document.getElementById('hostRoleSwitcher').style.display = 'none';
+        document.getElementById('hostRoleSwitcher').style.display = 'flex';
         document.getElementById('hostFloatingConsole').style.display = 'block';
-        setView('view-host');
+        document.getElementById('hostUrlBarArea').style.display = 'flex';
+
+        // 初期パラメータ生成
+        bTargetPasscode = Math.floor(100 + Math.random() * 900).toString();
+        bParityTarget = (Math.random() < 0.5) ? "even" : "odd";
+
+        setView('view-game');
+        initGameView();
         initHostPeer();
       } else {
+        // クライアント起動：指定された役職の担当画面で即時起動
         hostPeerId = hostParam;
-        if (roleParam && ['PL1', 'PL2', 'PL3'].includes(roleParam)) {
-          myRole = roleParam;
-          document.getElementById('roleIndicator').textContent = roleParam;
-          document.getElementById('roleIndicator').style.color = "var(--accent)";
-          document.getElementById('clientRoleConfirmTitle').textContent = `担当: ${roleParam}`;
-          document.getElementById('clientRoleConfirmDesc').textContent = `ホストとの接続を確立しています...`;
-        }
-        setView('view-select');
+        myRole = (roleParam && ['PL1', 'PL2', 'PL3'].includes(roleParam)) ? roleParam : 'PL1';
+
+        document.getElementById('roleIndicator').textContent = myRole;
+        document.getElementById('roleIndicator').style.color = "var(--accent)";
+
+        setView('view-game');
+        initGameView();
         initClientPreConnection();
       }
     });
@@ -684,8 +678,7 @@
         const baseUrl = `${window.location.origin}${window.location.pathname}?host=${id}`;
 
         ['PL1', 'PL2', 'PL3'].forEach(r => {
-          const input = document.getElementById(`url-${r}`);
-          if (input) input.value = `${baseUrl}&role=${r}`;
+          generatedUrls[r] = `${baseUrl}&role=${r}`;
         });
 
         peer.on('connection', conn => {
@@ -715,9 +708,14 @@
     }
 
     function copyRoleUrl(role) {
-      const input = document.getElementById(`url-${role}`);
-      input.select();
-      navigator.clipboard.writeText(input.value).then(() => alert(`${role} 専用URLをコピーしました！`));
+      const url = generatedUrls[role];
+      if (!url) {
+        alert("まだホストIDが発行されていません。数秒お待ちください。");
+        return;
+      }
+      navigator.clipboard.writeText(url).then(() => {
+        alert(`${role} 専用URLをコピーしました！\n${url}`);
+      });
     }
 
     function hostLog(msg, type = 'normal') {
@@ -753,28 +751,27 @@
           st.textContent = "接続中";
           st.style.color = "var(--green)";
         }
-        hostLog(`【参加認識】${data.role} が専用URLでチェックイン`, 'info');
+        hostLog(`【参加認識】${data.role} が担当画面にチェックイン`, 'info');
 
-        if (isGameRunning) {
-          senderConn.send({
-            type: 'START_GAME',
-            passcodes: pl2Passcodes,
-            lineCButtons: lineCButtonsByRole,
-            bPass: bTargetPasscode,
-            bParity: bParityTarget,
-            progress: {
-              aSolved: pipelineData.A.step3.solved,
-              bSolved: pipelineData.B.step3.solved,
-              cSolved: lineCSolved,
-              cTarget: currentTargetNumC,
-              messages: masterMessages
-            }
-          });
-        }
+        // 最新のゲーム状態を即座に同期返信
+        senderConn.send({
+          type: 'START_GAME',
+          passcodes: pl2Passcodes,
+          lineCButtons: lineCButtonsByRole,
+          bPass: bTargetPasscode,
+          bParity: bParityTarget,
+          progress: {
+            aSolved: pipelineData.A.step3.solved,
+            bSolved: pipelineData.B.step3.solved,
+            cSolved: lineCSolved,
+            cTarget: currentTargetNumC,
+            messages: masterMessages
+          }
+        });
       } else if (data.type === 'SOLVED') {
         if (data.line === 'C') lineCSolved = true;
         else pipelineData[data.line].step3.solved = true;
-        hostLog(`【解除成功】[${data.senderRole}] が [ライン${data.line}] の認証に成功し解除を完了！`, 'info');
+        hostLog(`【解除成功】[${data.senderRole}] が [ライン${data.line}] の認証に成功し解除完了！`, 'info');
         checkGameClear();
         broadcastToClients(data);
         renderModules();
@@ -849,24 +846,6 @@
       });
     }
 
-    function hostStartGame() {
-      isGameRunning = true;
-      bTargetPasscode = Math.floor(100 + Math.random() * 900).toString();
-      bParityTarget = (Math.random() < 0.5) ? "even" : "odd";
-
-      broadcastToClients({
-        type: 'START_GAME',
-        passcodes: pl2Passcodes,
-        lineCButtons: lineCButtonsByRole,
-        bPass: bTargetPasscode,
-        bParity: bParityTarget
-      });
-      hostLog(`本番ゲーム開始 (モジュールB条件: 秒の十の位が${bParityTarget === 'even' ? '偶数' : '奇数'})`, 'info');
-      document.getElementById('hostRoleSwitcher').style.display = 'flex';
-      initGameView();
-      setView('view-game');
-    }
-
     function hostChangeView(role) {
       hostViewingRole = role;
       document.querySelectorAll('#hostRoleSwitcher .role-btn').forEach(btn => {
@@ -912,32 +891,33 @@
       pipelineData.B.step3.solved = false;
       lineCSolved = false;
       currentTargetNumC = 1;
-      hostStartGame();
+      bTargetPasscode = Math.floor(100 + Math.random() * 900).toString();
+      bParityTarget = (Math.random() < 0.5) ? "even" : "odd";
+      isGameRunning = true;
+
+      broadcastToClients({
+        type: 'START_GAME',
+        passcodes: pl2Passcodes,
+        lineCButtons: lineCButtonsByRole,
+        bPass: bTargetPasscode,
+        bParity: bParityTarget
+      });
+      setView('view-game');
+      initGameView();
     }
 
-    // クライアント側（個別URL自動認識＋永続化）
+    // クライアント初期化（URL直行・自動チェックイン）
     function initClientPreConnection() {
       peer = new Peer(peerConfig);
 
       peer.on('error', err => {
         console.error("PeerJS Error:", err);
-        const waitMsg = document.getElementById('selectWaitMsg');
-        if (waitMsg) {
-          waitMsg.textContent = `接続エラー (${err.type}): ページを再読み込みしてください`;
-          waitMsg.style.color = "var(--red)";
-        }
       });
 
       peer.on('open', id => {
         hostConn = peer.connect(hostPeerId, { reliable: true });
 
         hostConn.on('open', () => {
-          const waitMsg = document.getElementById('selectWaitMsg');
-          if (waitMsg) {
-            waitMsg.textContent = `🎉 ホストに接続しました！開始合図を待っています...`;
-            waitMsg.style.color = "var(--green)";
-          }
-
           if (myRole) {
             hostConn.send({ type: 'HELLO_ROLE', role: myRole });
           }
@@ -974,7 +954,6 @@
 
         isGameRunning = true;
         initGameView();
-        setView('view-game');
       } else if (data.type === 'TIMER_SYNC') {
         otpRemainingSec = data.otpSec;
         pl2Passcodes = data.passcodes;
@@ -1585,13 +1564,14 @@
     }
 
     function updateUnreadBadges() {
+      const activeRole = getActiveViewRole();
       const unreadCount = masterMessages.length - displayedMessages.length;
       const b = document.getElementById('chatUnreadCount');
       if (unreadCount > 0) {
         b.style.display = "inline";
         b.textContent = `+${unreadCount}`;
         const pl2B = document.getElementById('pl2ChatUnread');
-        if (pl2B && myRole === 'PL2') pl2B.style.display = "inline";
+        if (pl2B && activeRole === 'PL2') pl2B.style.display = "inline";
       } else {
         b.style.display = "none";
         const pl2B = document.getElementById('pl2ChatUnread');
